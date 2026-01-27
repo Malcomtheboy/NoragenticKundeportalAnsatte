@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Noragentic – Ansattportal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Bakgrunn (uten bilde) -->
+  <div class="bg"></div>
+
+  <!-- Toppmeny -->
+  <header class="topbar">
+    <div class="logo">N</div>
+
+    <nav class="project-tabs">
+      <button class="tab is-active">Prosjekt 1</button>
+      <button class="tab">Prosjekt 2</button>
+      <button class="tab">Prosjekt 3</button>
+      <button class="tab">Flere</button>
+    </nav>
+  </header>
+
+  <!-- Innhold -->
+  <main class="wrap">
+
+    <!-- Øverste del -->
+    <section class="hero">
+      <div class="card small">
+        <div class="label">Nåværende prosjekt:</div>
+        <div class="big">Prosjekt 1</div>
+      </div>
+
+      <div class="card wide">
+        <div class="label">Nåværende delmål:</div>
+        <div class="big">Implementering av prototype</div>
+
+        <div class="progress">
+          <div class="track"></div>
+          <div class="knob" style="left: 30%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section class="dashboard card">
+
+      <!-- Filer -->
+      <div class="files">
+        <div class="section-title">Filer</div>
+
+        <div class="files-inner">
+          <div class="file-grid" id="fileGrid">
+            <!-- fylles av JavaScript -->
+          </div>
+
+          <div class="upload">
+            <button class="btn icon" id="btnUpload">Last opp ⬆</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Høyre side -->
+      <div class="right">
+
+        <div class="mini-card">
+          <div class="section-title">Ansatte på prosjekt</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Rolle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Ola</td><td>Prosjektleder</td></tr>
+              <tr><td>Kari</td><td>Utvikler</td></tr>
+              <tr><td>Kurt</td><td>Analytiker</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnDelmal">Oppdater delmål</button>
+          <button class="btn" id="btnBeskrivelse">Oppdater prosjektbeskrivelse</button>
+          <button class="btn" id="btnUkesstatus">Oppdater ukesstatus</button>
+        </div>
+
+        <div class="mini-card chat-preview">
+          <div class="section-title">Chat</div>
+          <p class="hint">Bruk chatten for å kommunisere med kunde og team.</p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Chat-boble -->
+  <button class="chat-bubble" id="chatBubble">💬</button>
+
+  <!-- Chat-vindu -->
+  <div class="modal is-hidden" id="chatModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title">Chat</div>
+        <button class="x" id="chatClose">✕</button>
+      </div>
+
+      <div class="modal-body" id="chatMessages">
+        <div class="msg other">Hei! Hvordan kan jeg hjelpe?</div>
+      </div>
+
+      <form class="modal-foot" id="chatForm">
+        <input id="chatInput" type="text" placeholder="Skriv en melding..." />
+        <button class="btn primary" type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast is-hidden" id="toast">Lagret ✅</div>
+
+  <!-- Modal for knapper -->
+  <div class="modal-center is-hidden" id="modalCenter">
+    <div class="center-card">
+      <div class="center-head">
+        <div class="center-title" id="modalTitle">Tittel</div>
+        <button class="x" id="modalX">✕</button>
+      </div>
+
+      <div class="center-body">
+        <label class="field">
+          <div class="field-label" id="modalLabel">Tekst</div>
+          <input id="modalInput" type="text" placeholder="Skriv her..." />
+        </label>
+        <p class="small-note">
+          Demo: ingen backend koblet til ennå.
+        </p>
+      </div>
+
+      <div class="center-foot">
+        <button class="btn" id="modalCancel">Avbryt</button>
+        <button class="btn primary" id="modalSave">Lagre</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="script.js"></script>
+</body>
+</html>
