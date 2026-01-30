@@ -1,3 +1,56 @@
+// ---- Fake prosjektdata (demo) ----
+const projects = {
+  p1: {
+    name: "Prosjekt 1",
+    goal: "Implementering av prototype",
+    progress: 30,
+    files: [
+      { icon: "📄", name: "Status_uke_01.pdf", sub: "PDF • 420 KB" },
+      { icon: "🖼️", name: "mockup.png", sub: "PNG • 1.2 MB" },
+    ],
+  },
+  p2: {
+    name: "Prosjekt 2",
+    goal: "Integrasjon mot backend",
+    progress: 55,
+    files: [
+      { icon: "📄", name: "API-kontrakt.pdf", sub: "PDF • 180 KB" },
+      { icon: "📊", name: "ukesrapport.xlsx", sub: "XLSX • 240 KB" },
+    ],
+  },
+  p3: {
+    name: "Prosjekt 3",
+    goal: "Testing og kvalitetssikring",
+    progress: 80,
+    files: [
+      { icon: "📄", name: "Testplan.docx", sub: "DOCX • 95 KB" },
+      { icon: "📄", name: "Feillogg.txt", sub: "TXT • 12 KB" },
+    ],
+  },
+};
+
+function renderProject(project) {
+  // Oppdater tekst
+  document.querySelector(".card.small .big").textContent = project.name;
+  document.querySelector(".card.wide .big").textContent = project.goal;
+
+  // Oppdater progresjon
+  const knob = document.querySelector(".knob");
+  knob.style.left = project.progress + "%";
+
+  // Oppdater filer
+  const fileGrid = document.getElementById("fileGrid");
+  fileGrid.innerHTML = project.files.map(f => `
+    <div class="file">
+      <div class="icon">${f.icon}</div>
+      <div class="meta">
+        <div class="name">${f.name}</div>
+        <div class="sub">${f.sub}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
 // Fake filer (kun for design-demo nå)
 const files = [
   { icon: "📄", name: "Status_uke_01.pdf", sub: "PDF • 420 KB" },
@@ -160,3 +213,21 @@ modalSave.addEventListener("click", () => {
     if (big) big.textContent = value;
   }
 });
+
+// ---- Prosjektbytte ----
+const tabs = document.querySelectorAll(".tab[data-project]");
+
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    // aktiv tab
+    tabs.forEach(t => t.classList.remove("is-active"));
+    tab.classList.add("is-active");
+
+    // last prosjekt
+    const key = tab.dataset.project;
+    renderProject(projects[key]);
+  });
+});
+
+// Start med Prosjekt 1
+renderProject(projects.p1);
