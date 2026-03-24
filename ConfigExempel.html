@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Firebase Full Test</title>
+</head>
+<body>
+ 
+<h1>Firebase Test</h1>
+ 
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
+<button onclick="addData()">Test Database</button>
+ 
+<input type="file" id="fileInput">
+<button onclick="uploadFile()">Upload File</button>
+ 
+<script type="module">
+ //___________________________________Den Viktige delen_________________________
+// IMPORTS
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+ 
+// CONFIG
+const firebaseConfig = {
+apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
+authDomain: "noragenticportal.firebaseapp.com",
+projectId: "noragenticportal",
+storageBucket: "noragenticportal.firebasestorage.app",
+messagingSenderId: "662374310916",
+appId: "1:662374310916:web:a3a5d708bdd380a7210151",
+
+};
+ 
+// INIT
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+ //___________________________________________________________________________________
+
+ // REGISTER
+window.register = async function () {
+  try {
+    const user = await createUserWithEmailAndPassword(auth, "test@test.no", "123456");
+    alert("Bruker opprettet!");
+  } catch (e) {
+    console.error(e);
+  }
+}
+ 
+// LOGIN
+window.login = async function () {
+  try {
+    await signInWithEmailAndPassword(auth, "test@test.no", "123456");
+    alert("Logget inn!");
+  } catch (e) {
+    console.error(e);
+  }
+}
+ 
+// DATABASE TEST
+window.addData = async function () {
+  try {
+    await addDoc(collection(db, "test"), {
+      message: "Hei fra Firebase",
+      createdAt: new Date()
+    });
+    alert("Data lagret!");
+  } catch (e) {
+    console.error(e);
+  }
+}
+ 
+// UPLOAD FILE
+window.uploadFile = async function () {
+  const file = document.getElementById("fileInput").files[0];
+ 
+  if (!file) {
+    alert("Velg en fil først");
+    return;
+  }
+ 
+  try {
+    const fileRef = ref(storage, "files/" + file.name);
+ 
+    await uploadBytes(fileRef, file);
+ 
+    const url = await getDownloadURL(fileRef);
+ 
+    alert("Fil lastet opp!\n" + url);
+ 
+    // lagre i Firestore
+    await addDoc(collection(db, "files"), {
+      fileName: file.name,
+      fileUrl: url,
+      createdAt: new Date()
+    });
+ 
+  } catch (e) {
+    console.error(e);
+  }
+}
+ 
+</script>
+ 
+</body>
+</html>
