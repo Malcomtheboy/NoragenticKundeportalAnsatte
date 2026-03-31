@@ -1,233 +1,93 @@
-// ---- Fake prosjektdata (demo) ----
-const projects = {
-  p1: {
-    name: "Prosjekt 1",
-    goal: "Implementering av prototype",
-    progress: 30,
-    files: [
-      { icon: "📄", name: "Status_uke_01.pdf", sub: "PDF • 420 KB" },
-      { icon: "🖼️", name: "mockup.png", sub: "PNG • 1.2 MB" },
-    ],
-  },
-  p2: {
-    name: "Prosjekt 2",
-    goal: "Integrasjon mot backend",
-    progress: 55,
-    files: [
-      { icon: "📄", name: "API-kontrakt.pdf", sub: "PDF • 180 KB" },
-      { icon: "📊", name: "ukesrapport.xlsx", sub: "XLSX • 240 KB" },
-    ],
-  },
-  p3: {
-    name: "Prosjekt 3",
-    goal: "Testing og kvalitetssikring",
-    progress: 80,
-    files: [
-      { icon: "📄", name: "Testplan.docx", sub: "DOCX • 95 KB" },
-      { icon: "📄", name: "Feillogg.txt", sub: "TXT • 12 KB" },
-    ],
-  },
-};
+/* =========================================================
+   SIDE-DETEKSJON
+========================================================= */
+const isLoginPage = !!document.getElementById("loginForm");
+const isDashboardPage = !!document.getElementById("projectName");
 
-function renderProject(project) {
-  // Oppdater tekst
-  document.querySelector(".card.small .big").textContent = project.name;
-  document.querySelector(".card.wide .big").textContent = project.goal;
+/* =========================================================
+   ROUTE GUARD (midlertidig frontend-flow)
+========================================================= */
+(function guardPages() {
+  const path = (window.location.pathname || "").toLowerCase();
+  const onLogin = path.endsWith("login.html");
+  const onDashboard = path.endsWith("index.html") || path.endsWith("/");
 
-  // Oppdater progresjon
-  const knob = document.querySelector(".knob");
-  knob.style.left = project.progress + "%";
+  const loggedIn = localStorage.getItem("employee_logged_in") === "true";
 
-  // Oppdater filer
-  const fileGrid = document.getElementById("fileGrid");
-  fileGrid.innerHTML = project.files.map(f => `
-    <div class="file">
-      <div class="icon">${f.icon}</div>
-      <div class="meta">
-        <div class="name">${f.name}</div>
-        <div class="sub">${f.sub}</div>
-      </div>
-    </div>
-  `).join("");
-}
+  if (onDashboard && !loggedIn) window.location.href = "login.html";
+  if (onLogin && loggedIn) window.location.href = "index.html";
+})();
 
-// Fake filer (kun for design-demo nå)
-const files = [
-  { icon: "📄", name: "Status_uke_01.pdf", sub: "PDF • 420 KB" },
-  { icon: "📄", name: "Møte-notater.docx", sub: "DOCX • 88 KB" },
-  { icon: "🖼️", name: "mockup.png", sub: "PNG • 1.2 MB" },
-  { icon: "📊", name: "ukesrapport.xlsx", sub: "XLSX • 240 KB" },
-  { icon: "📄", name: "Kravspesifikasjon.pdf", sub: "PDF • 560 KB" },
-  { icon: "🖼️", name: "diagram.png", sub: "PNG • 640 KB" },
-];
+/* =========================================================
+   LOGIN
+========================================================= */
+if (isLoginPage) {
+  const form = document.getElementById("loginForm");
+  const hint = document.getElementById("hint");
 
-const fileGrid = document.getElementById("fileGrid");
-fileGrid.innerHTML = files.map(f => `
-  <div class="file" role="button" tabindex="0" title="Åpne fil (demo)">
-    <div class="icon">${f.icon}</div>
-    <div class="meta">
-      <div class="name">${f.name}</div>
-      <div class="sub">${f.sub}</div>
-    </div>
-  </div>
-`).join("");
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
 
-// Chat åpne/lukk
-const chatBubble = document.getElementById("chatBubble");
-const chatModal = document.getElementById("chatModal");
-const chatClose = document.getElementById("chatClose");
+    localStorage.setItem("employee_logged_in", "true");
 
-chatBubble.addEventListener("click", () => chatModal.classList.remove("is-hidden"));
-chatClose.addEventListener("click", () => chatModal.classList.add("is-hidden"));
-
-// Chat send (demo)
-const chatForm = document.getElementById("chatForm");
-const chatInput = document.getElementById("chatInput");
-const chatMessages = document.getElementById("chatMessages");
-
-chatForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const text = chatInput.value.trim();
-  if (!text) return;
-
-  const div = document.createElement("div");
-  div.className = "msg me";
-  div.textContent = text;
-  chatMessages.appendChild(div);
-
-  chatInput.value = "";
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-
-  // fake auto-svar
-  setTimeout(() => {
-    const reply = document.createElement("div");
-    reply.className = "msg other";
-    reply.textContent = "Mottatt ✅ (demo)";
-    chatMessages.appendChild(reply);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }, 400);
-});
-
-// ---------- Modal + toast (for knappene) ----------
-const toast = document.getElementById("toast");
-const modalCenter = document.getElementById("modalCenter");
-const modalTitle = document.getElementById("modalTitle");
-const modalLabel = document.getElementById("modalLabel");
-const modalInput = document.getElementById("modalInput");
-
-const modalX = document.getElementById("modalX");
-const modalCancel = document.getElementById("modalCancel");
-const modalSave = document.getElementById("modalSave");
-
-const btnDelmal = document.getElementById("btnDelmal");
-const btnBeskrivelse = document.getElementById("btnBeskrivelse");
-const btnUkesstatus = document.getElementById("btnUkesstatus");
-const btnUpload = document.getElementById("btnUpload");
-
-let currentKey = null;
-
-function showToast(text) {
-  toast.textContent = text;
-  toast.classList.remove("is-hidden");
-  setTimeout(() => toast.classList.add("is-hidden"), 1400);
-}
-
-function openModal({ title, label, placeholder, key, defaultValue = "" }) {
-  currentKey = key;
-  modalTitle.textContent = title;
-  modalLabel.textContent = label;
-  modalInput.placeholder = placeholder;
-  modalInput.value = defaultValue;
-
-  modalCenter.classList.remove("is-hidden");
-  setTimeout(() => modalInput.focus(), 0);
-}
-
-function closeModal() {
-  modalCenter.classList.add("is-hidden");
-  currentKey = null;
-}
-
-function saveValue(key, value) {
-  localStorage.setItem(key, value);
-}
-
-function loadValue(key, fallback = "") {
-  return localStorage.getItem(key) ?? fallback;
-}
-
-// Koble knapper
-btnDelmal.addEventListener("click", () => {
-  openModal({
-    title: "Oppdater delmål",
-    label: "Nytt delmål",
-    placeholder: "f.eks. Integrere backend",
-    key: "delmal",
-    defaultValue: loadValue("delmal", "Implementering av Prototype"),
+    hint.textContent = "Logger inn…";
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 300);
   });
-});
+}
 
-btnBeskrivelse.addEventListener("click", () => {
-  openModal({
-    title: "Oppdater prosjektbeskrivelse",
-    label: "Kort beskrivelse",
-    placeholder: "f.eks. Status, avtaler, neste steg…",
-    key: "beskrivelse",
-    defaultValue: loadValue("beskrivelse", ""),
-  });
-});
+/* =========================================================
+   DASHBOARD
+========================================================= */
+if (isDashboardPage) {
+  const projects = {
+    p1: {
+      name: "Prosjekt 1",
+      goal: "Her kan prosjektets aktive delmål vises"
+    },
+    p2: {
+      name: "Prosjekt 2",
+      goal: "Her kan status for prosjekt 2 vises"
+    },
+    p3: {
+      name: "Prosjekt 3",
+      goal: "Her kan status for prosjekt 3 vises"
+    }
+  };
 
-btnUkesstatus.addEventListener("click", () => {
-  openModal({
-    title: "Oppdater ukesstatus",
-    label: "Ukesstatus",
-    placeholder: "f.eks. Uke 3: Ferdig med UI, starter API…",
-    key: "ukesstatus",
-    defaultValue: loadValue("ukesstatus", ""),
-  });
-});
+  let currentProject = "p1";
 
-btnUpload.addEventListener("click", () => {
-  showToast("Last opp (demo) 📎");
-});
+  const projectName = document.getElementById("projectName");
+  const projectGoal = document.getElementById("projectGoal");
+  const tabs = document.querySelectorAll(".tab[data-project]");
 
-// Lukk modal
-modalX.addEventListener("click", closeModal);
-modalCancel.addEventListener("click", closeModal);
-
-// Klikk utenfor for å lukke
-modalCenter.addEventListener("click", (e) => {
-  if (e.target === modalCenter) closeModal();
-});
-
-// Lagre modal
-modalSave.addEventListener("click", () => {
-  const value = modalInput.value.trim();
-  if (currentKey) saveValue(currentKey, value);
-  closeModal();
-  showToast("Lagret ✅");
-
-  // Oppdater UI litt (demo)
-  if (currentKey === "delmal" && value) {
-    const big = document.querySelector(".card.wide .big");
-    if (big) big.textContent = value;
+  function renderProject(project) {
+    projectName.textContent = project.name;
+    projectGoal.textContent = project.goal;
   }
-});
 
-// ---- Prosjektbytte ----
-const tabs = document.querySelectorAll(".tab[data-project]");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("is-active"));
+      tab.classList.add("is-active");
 
-tabs.forEach(tab => {
-  tab.addEventListener("click", () => {
-    // aktiv tab
-    tabs.forEach(t => t.classList.remove("is-active"));
-    tab.classList.add("is-active");
-
-    // last prosjekt
-    const key = tab.dataset.project;
-    renderProject(projects[key]);
+      currentProject = tab.dataset.project;
+      renderProject(projects[currentProject]);
+    });
   });
-});
 
-// Start med Prosjekt 1
-renderProject(projects.p1);
+  renderProject(projects[currentProject]);
+}
+/* =========================================================
+   LOGG UT
+========================================================= */
+
+const logoutBtn = document.getElementById("logoutBtn");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("employee_logged_in");
+    window.location.href = "login.html";
+  });
+}
