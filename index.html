@@ -44,32 +44,6 @@
 
       <div class="left-column">
         <section class="panel card">
-          <div class="section-title">Filer</div>
-          <p class="section-description">
-            Her er filopplasting, filoversikt og nedlasting.
-          </p>
-          <div class="placeholder-box tall" id="filesPlaceholder">
-            <div class="placeholder-title">Placeholder for filmodul</div>
-            <div class="placeholder-text">
-              Her kan backend/frontend koble inn opplasting, visning av filer og filmetadata.
-            </div>
-          </div>
-        </section>
-
-        <section class="panel card">
-          <div class="section-title">Prosjektbeskrivelse</div>
-          <p class="section-description">
-            Dette området kan vise en beskrivelse av prosjektet, mål og kontekst.
-          </p>
-          <div class="placeholder-box" id="descriptionPlaceholder">
-            <div class="placeholder-title">Placeholder for prosjektbeskrivelse</div>
-            <div class="placeholder-text">
-              Her kan tekst fra database eller backend vises.
-            </div>
-          </div>
-        </section>
-
-        <section class="panel card">
           <div class="section-title">Ukesstatus</div>
           <p class="section-description">
             Dette området kan brukes til ukentlig statusoppdatering og fremdrift.
@@ -81,6 +55,22 @@
             </div>
           </div>
         </section>
+
+        <section class="panel card">
+          <div id="fileManager" class="file-manager-shell">
+            <div class="file-manager-topbar">
+              <div id="breadcrumbBar" class="breadcrumb-bar"></div>
+              <div class="file-actions">
+                <button id="newFolderBtn" class="upload-btn secondary" type="button">Ny mappe</button> <!-- 🔥 NYTT -->
+                <button id="uploadBtn" class="upload-btn" type="button">Last opp</button>
+              </div>
+            </div>
+            <input type="file" id="fileInput" hidden />
+
+            <div id="contentsList" class="loading-state">Laster...</div>
+          </div>
+        </section>
+
       </div>
 
       <div class="right-column">
@@ -96,7 +86,18 @@
             </div>
           </div>
         </section>
-
+        <section class="panel card">
+          <div class="section-title">Prosjektbeskrivelse</div>
+          <p class="section-description">
+            Dette området kan vise en beskrivelse av prosjektet, mål og kontekst.
+          </p>
+          <div class="placeholder-box" id="descriptionPlaceholder">
+            <div class="placeholder-title">Placeholder for prosjektbeskrivelse</div>
+            <div class="placeholder-text">
+              Her kan tekst fra database eller backend vises.
+            </div>
+          </div>
+        </section>
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
           <p class="section-description">
@@ -128,6 +129,7 @@
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
+  <script type="module" src="employee-file-manager.js"></script>
 </body>
 </html>

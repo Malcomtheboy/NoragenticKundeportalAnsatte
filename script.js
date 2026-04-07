@@ -44,15 +44,18 @@ if (isDashboardPage) {
   const projects = {
     p1: {
       name: "Prosjekt 1",
-      goal: "Her kan prosjektets aktive delmål vises"
+      goal: "Her kan prosjektets aktive delmål vises",
+      id: "PROJECT_ABC_123" // @aslak
     },
     p2: {
       name: "Prosjekt 2",
-      goal: "Her kan status for prosjekt 2 vises"
+      goal: "Her kan status for prosjekt 2 vises",
+      id: "PROJECT_DEF_456" // @aslak
     },
     p3: {
       name: "Prosjekt 3",
-      goal: "Her kan status for prosjekt 3 vises"
+      goal: "Her kan status for prosjekt 3 vises",
+      id: "PROJECT_GHI_789" // @aslak
     }
   };
 
@@ -66,7 +69,15 @@ if (isDashboardPage) {
     projectName.textContent = project.name;
     projectGoal.textContent = project.goal;
   }
+function updateFileManager(projectId) {
+    window.currentProjectId = projectId;
 
+    window.dispatchEvent(
+      new CustomEvent("projectChanged", {
+        detail: { projectId }
+      })
+    );
+  }
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("is-active"));
@@ -74,10 +85,13 @@ if (isDashboardPage) {
 
       currentProject = tab.dataset.project;
       renderProject(projects[currentProject]);
+
+      updateFileManager(projects[currentProject].id);//@aslak
     });
   });
 
   renderProject(projects[currentProject]);
+  updateFileManager(projects[currentProject].id);//@aslak
 }
 /* =========================================================
    LOGG UT
