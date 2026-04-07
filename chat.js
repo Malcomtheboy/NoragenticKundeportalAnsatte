@@ -1,60 +1,90 @@
 import { database } from "./firebase-config.js";
 import { ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
+// 🔑 HENT prosjekt (fra knappene dine)
+let currentProject = "prosjekt1";
+
+// 🔑 HENT rolle (ENKEL TEST)
+const role = localStorage.getItem("role") || "ansatt"; 
+// sett "kunde" i kundeportal
+
+// HTML
 const chatBox = document.getElementById("chatMessages");
 const form = document.getElementById("chatForm");
 const input = document.getElementById("chatInput");
 const testBtn = document.getElementById("testBtn");
 
-// 🔑 chat path
-const chatRef = ref(database, "chats/prosjekt1");
+// 🔥 FUNKSJON SOM SETTER CHAT
+function loadChat(projectId) {
 
-// 🔥 SEND MELDING
-form.addEventListener("submit", (e) => {
-    e.preventDefault();
+    const chatRef = ref(database, "chats/" + projectId);
 
-    const text = input.value.trim();
-    if (!text) return;
+    // LIVE LISTENER
+    onValue(chatRef, (snapshot) => {
+        chatBox.innerHTML = "";
 
-    push(chatRef, {
-        text: text,
-        sender: "ansatt",
-        time: Date.now()
+        if (!snapshot.exists()) return;
+
+        snapshot.forEach(child => {
+            const msg = child.val();
+
+            const div = document.createElement("div");
+            div.classList.add("msg");
+
+            if (msg.sender === role) {
+                div.classList.add("me");
+            } else {
+                div.classList.add("other");
+            }
+
+            div.innerText = msg.text;
+            chatBox.appendChild(div);
+        });
+
+        chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    input.value = "";
-});
+    // SEND
+    form.onsubmit = (e) => {
+        e.preventDefault();
 
-// ⚡ LIVE CHAT (oppdaterer automatisk)
-onValue(chatRef, (snapshot) => {
-    chatBox.innerHTML = "";
+        const text = input.value.trim();
+        if (!text) return;
 
-    snapshot.forEach(child => {
-        const msg = child.val();
+        push(chatRef, {
+            text: text,
+            sender: role,
+            time: Date.now()
+        });
 
-        const div = document.createElement("div");
-        div.classList.add("msg");
+        input.value = "";
+    };
 
-        if (msg.sender === "ansatt") {
-            div.classList.add("me");
-        } else {
-            div.classList.add("other");
-        }
+    // TEST
+    testBtn.onclick = () => {
+        push(chatRef, {
+            text: "🔥 TEST " + role,
+            sender: "system",
+            time: Date.now()
+        });
+    };
+}
 
-        div.innerText = msg.text;
-        chatBox.appendChild(div);
+// 🚀 LAST INN DEFAULT
+loadChat(currentProject);
+
+
+// 🔥 KOBLE TIL DINE PROSJEKT-KNAPPER
+document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+
+        const project = btn.dataset.project;
+
+        if (!project) return;
+
+        currentProject = project;
+
+        // reload chat
+        loadChat(project);
     });
-
-    chatBox.scrollTop = chatBox.scrollHeight;
-});
-
-// 🧪 TEST KNAPP (sjekker database)
-testBtn.addEventListener("click", () => {
-    push(chatRef, {
-        text: "🔥 TEST FUNKER",
-        sender: "system",
-        time: Date.now()
-    });
-
-    alert("Test melding sendt til database!");
 });

@@ -103,11 +103,17 @@
           <p class="section-description">
             Her er gruppechat mellom kunde og ansatte på prosjektet.
           </p>
-          <div class="placeholder-box tall" id="chatPlaceholder">
-            <div class="placeholder-title">Placeholder for gruppechat</div>
-            <div class="placeholder-text">
-              Her kan chaten settes inn.
-            </div>
+          <div class="chat-box">
+
+            <div id="chatMessages" class="chat-messages"></div>
+          
+            <form id="chatForm" class="chat-input">
+              <input id="chatInput" type="text" placeholder="Skriv melding..." />
+              <button type="submit" class="btn">Send</button>
+            </form>
+          
+            <button id="testBtn" class="btn small">Test DB</button>
+          
           </div>
         </section>
 
@@ -128,7 +134,7 @@
 
     </section>
   </main>
-
+  <script type="module" src="chat.js"></script>
   <script type="module" src="script.js"></script>
   <script type="module" src="employee-file-manager.js"></script>
 </body>
