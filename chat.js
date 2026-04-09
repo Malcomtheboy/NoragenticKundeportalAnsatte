@@ -13,14 +13,20 @@ const chatBox = document.getElementById("chatMessages");
 const form = document.getElementById("chatForm");
 const input = document.getElementById("chatInput");
 const testBtn = document.getElementById("testBtn");
+let unsubscribeChat = null;
+
 
 // 🔥 FUNKSJON SOM SETTER CHAT
 function loadChat(projectId) {
 
     const chatRef = ref(database, "chats/" + projectId);
+    if (unsubscribeChat) {
+  unsubscribeChat();
+}
+
 
     // LIVE LISTENER
-    onValue(chatRef, (snapshot) => {
+    unsubscribeChat = onValue(chatRef, (snapshot) => {
         chatBox.innerHTML = "";
 
         if (!snapshot.exists()) return;
