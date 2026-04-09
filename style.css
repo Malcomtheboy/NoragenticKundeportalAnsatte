@@ -145,6 +145,25 @@ body{
   line-height:1.5;
 }
 
+.editable-box{
+  min-height:120px;
+  border:1px dashed rgba(255,255,255,0.18);
+  border-radius:14px;
+  padding:16px;
+  background:rgba(90, 108, 160, 0.18);
+  color:rgba(255,255,255,0.92);
+  font-size:14px;
+  line-height:1.5;
+  outline:none;
+  cursor:text;
+}
+
+.editable-box:empty::before{
+  content: attr(data-placeholder);
+  color: rgba(255,255,255,0.75);
+}
+
+
 .placeholder-box{
   min-height:140px;
   border:1px dashed rgba(255,255,255,0.22);

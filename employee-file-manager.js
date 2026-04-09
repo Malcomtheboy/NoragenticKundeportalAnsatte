@@ -252,19 +252,23 @@ async function uploadSelectedFile(file) {
       uploadBtn.textContent = "Laster opp...";
     }
 
-    const storageRef = ref(storage, `projects/${currentProjectId}/${file.name}`);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
+    const uniqueFileName = `${Date.now()}-${file.name}`;
 
-    await addDoc(collection(db, "files"), {
-      filename: file.name,
-      fileUrl: downloadURL,
-      projectId: currentProjectId,
-      folderId: currentFolderId || null,
-      uploadedBy: "Ansatt",
-      customerVisibility: false,
-      dateUploaded: serverTimestamp()
-    });
+const storageRef = ref(storage, `projects/${currentProjectId}/${uniqueFileName}`);
+await uploadBytes(storageRef, file);
+const downloadURL = await getDownloadURL(storageRef);
+
+await addDoc(collection(db, "files"), {
+  filename: file.name,
+  fileUrl: downloadURL,
+  storagePath: `projects/${currentProjectId}/${uniqueFileName}`,
+  projectId: currentProjectId,
+  folderId: currentFolderId || null,
+  uploadedBy: "Ansatt",
+  customerVisibility: false,
+  dateUploaded: serverTimestamp()
+});
+
 
     fileInput.value = "";
     await loadContents();

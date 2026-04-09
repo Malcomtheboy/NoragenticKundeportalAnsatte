@@ -64,11 +64,37 @@ if (isDashboardPage) {
   const projectName = document.getElementById("projectName");
   const projectGoal = document.getElementById("projectGoal");
   const tabs = document.querySelectorAll(".tab[data-project]");
+  const projectDescription = document.getElementById("projectDescription");
+  const customerDescription = document.getElementById("customerDescription");
+
+
 
   function renderProject(project) {
     projectName.textContent = project.name;
     projectGoal.textContent = project.goal;
+    
   }
+  
+
+  function loadDescription(projectKey) {
+  projectDescription.textContent = localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
+  customerDescription.textContent = localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
+}
+
+function saveDescription(projectKey) {
+  localStorage.setItem(`employee_projectDescription_${projectKey}`, projectDescription.textContent.trim());
+  localStorage.setItem(`employee_customerDescription_${projectKey}`, customerDescription.textContent.trim());
+}
+
+projectDescription.addEventListener("blur", () => {
+  saveDescription(currentProject);
+});
+
+customerDescription.addEventListener("blur", () => {
+  saveDescription(currentProject);
+});
+
+
 function updateFileManager(projectId) {
     window.currentProjectId = projectId;
 
@@ -85,13 +111,15 @@ function updateFileManager(projectId) {
 
       currentProject = tab.dataset.project;
       renderProject(projects[currentProject]);
-
+      loadDescription(currentProject);
       updateFileManager(projects[currentProject].id);//@aslak
     });
   });
 
   renderProject(projects[currentProject]);
+  loadDescription(currentProject);
   updateFileManager(projects[currentProject].id);//@aslak
+  
 }
 /* =========================================================
    LOGG UT
