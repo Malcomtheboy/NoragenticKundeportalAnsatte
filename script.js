@@ -3,6 +3,7 @@
 ========================================================= */
 const isLoginPage = !!document.getElementById("loginForm");
 const isDashboardPage = !!document.getElementById("projectName");
+const userRole = localStorage.getItem("employee_role");
 
 /* =========================================================
    ROUTE GUARD (midlertidig frontend-flow)
@@ -40,25 +41,22 @@ if (isLoginPage) {
 /* =========================================================
    DASHBOARD
 ========================================================= */
-
-const userRole = localStorage.getItem("employee_role");
-
 if (isDashboardPage) {
   const projects = {
     p1: {
       name: "Prosjekt 1",
       goal: "Her kan prosjektets aktive delmål vises",
-      id: "PROJECT_ABC_123" // @aslak
+      id: "PROJECT_ABC_123"
     },
     p2: {
       name: "Prosjekt 2",
       goal: "Her kan status for prosjekt 2 vises",
-      id: "PROJECT_DEF_456" // @aslak
+      id: "PROJECT_DEF_456"
     },
     p3: {
       name: "Prosjekt 3",
       goal: "Her kan status for prosjekt 3 vises",
-      id: "PROJECT_GHI_789" // @aslak
+      id: "PROJECT_GHI_789"
     }
   };
 
@@ -67,38 +65,59 @@ if (isDashboardPage) {
   const projectName = document.getElementById("projectName");
   const projectGoal = document.getElementById("projectGoal");
   const tabs = document.querySelectorAll(".tab[data-project]");
+
   const projectDescription = document.getElementById("projectDescription");
   const customerDescription = document.getElementById("customerDescription");
 
-
+  const createCustomerBtn = document.getElementById("createCustomerBtn");
+  const createProjectBtn = document.getElementById("createProjectBtn");
 
   function renderProject(project) {
     projectName.textContent = project.name;
     projectGoal.textContent = project.goal;
-    
   }
-  
 
   function loadDescription(projectKey) {
-  projectDescription.textContent = localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
-  customerDescription.textContent = localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
-}
+    if (projectDescription) {
+      projectDescription.textContent =
+        localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
+    }
 
-function saveDescription(projectKey) {
-  localStorage.setItem(`employee_projectDescription_${projectKey}`, projectDescription.textContent.trim());
-  localStorage.setItem(`employee_customerDescription_${projectKey}`, customerDescription.textContent.trim());
-}
+    if (customerDescription) {
+      customerDescription.textContent =
+        localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
+    }
+  }
 
-projectDescription.addEventListener("blur", () => {
-  saveDescription(currentProject);
-});
+  function saveDescription(projectKey) {
+    if (projectDescription) {
+      localStorage.setItem(
+        `employee_projectDescription_${projectKey}`,
+        projectDescription.textContent.trim()
+      );
+    }
 
-customerDescription.addEventListener("blur", () => {
-  saveDescription(currentProject);
-});
+    if (customerDescription) {
+      localStorage.setItem(
+        `employee_customerDescription_${projectKey}`,
+        customerDescription.textContent.trim()
+      );
+    }
+  }
 
+  if (projectDescription) {
+    projectDescription.addEventListener("blur", () => {
+      saveDescription(currentProject);
+    });
+  }
 
-function updateFileManager(projectId) {
+  if (customerDescription) {
+    customerDescription.addEventListener("blur", () => {
+      saveDescription(currentProject);
+    });
+  }
+
+  function updateFileManager(projectId) {
     window.currentProjectId = projectId;
 
     window.dispatchEvent(
@@ -107,6 +126,7 @@ function updateFileManager(projectId) {
       })
     );
   }
+
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("is-active"));
@@ -115,32 +135,29 @@ function updateFileManager(projectId) {
       currentProject = tab.dataset.project;
       renderProject(projects[currentProject]);
       loadDescription(currentProject);
-      updateFileManager(projects[currentProject].id);//@aslak
+      updateFileManager(projects[currentProject].id);
     });
   });
 
+  // Vis owner-knapper kun for owner
+  if (userRole === "owner") {
+    if (createCustomerBtn) {
+      createCustomerBtn.classList.remove("hidden");
+    }
+
+    if (createProjectBtn) {
+      createProjectBtn.classList.remove("hidden");
+    }
+  }
+
   renderProject(projects[currentProject]);
   loadDescription(currentProject);
-  updateFileManager(projects[currentProject].id);//@aslak
-  
-}
-
-const createCustomerBtn = document.getElementById("createCustomerBtn");
-
-if (createCustomerBtn && userRole === "owner") {
-  createCustomerBtn.classList.remove("hidden");
-}
-
-if (createCustomerBtn) {
-  createCustomerBtn.addEventListener("click", () => {
-    alert("Her skal vi opprette kundekonto");
-  });
+  updateFileManager(projects[currentProject].id);
 }
 
 /* =========================================================
    LOGG UT
 ========================================================= */
-
 const logoutBtn = document.getElementById("logoutBtn");
 
 if (logoutBtn) {
