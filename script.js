@@ -40,6 +40,9 @@ if (isLoginPage) {
 /* =========================================================
    DASHBOARD
 ========================================================= */
+
+const userRole = localStorage.getItem("employee_role");
+
 if (isDashboardPage) {
   const projects = {
     p1: {
@@ -121,6 +124,19 @@ function updateFileManager(projectId) {
   updateFileManager(projects[currentProject].id);//@aslak
   
 }
+
+const createCustomerBtn = document.getElementById("createCustomerBtn");
+
+if (createCustomerBtn && userRole === "owner") {
+  createCustomerBtn.classList.remove("hidden");
+}
+
+if (createCustomerBtn) {
+  createCustomerBtn.addEventListener("click", () => {
+    alert("Her skal vi opprette kundekonto");
+  });
+}
+
 /* =========================================================
    LOGG UT
 ========================================================= */
