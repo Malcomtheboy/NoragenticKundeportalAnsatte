@@ -91,14 +91,48 @@
       <div class="right-column">
 
         <section class="panel card">
-          <div class="section-title">Ansatte på prosjekt</div>
-          <p class="section-description">Oversikt over ansatte tilknyttet prosjektet og deres roller.</p>
-          <div class="placeholder-box">
-            <div class="placeholder-title">Placeholder for teamoversikt</div>
-            <div class="placeholder-text">Her kan tabell eller liste med ansatte og roller kobles inn.</div>
+          <div class="team-header">
+            <div>
+              <div class="section-title">Ansatte på prosjekt</div>
+              <p class="section-description">
+                Oversikt over hvilke ansatte som er tilknyttet prosjektet og deres roller.
+              </p>
+            </div>
+
+            <button id="addEmployeeBtn" class="btn small" type="button">
+              + Legg til ansatt
+            </button>
+          </div>
+
+          <div id="teamPlaceholder" class="team-loading">
+            Laster ansatte...
           </div>
         </section>
-
+        <div id="addEmployeeModal" class="team-modal is-hidden">
+            <div class="team-modal-card">
+              <div class="team-modal-head">
+                <div class="team-modal-title">Legg til ansatt</div>
+                <button id="closeEmployeeModalBtn" class="team-modal-close" type="button">✕</button>
+              </div>
+        
+              <div class="team-modal-body">
+                <p class="team-modal-text">
+                  Velg en ansatt som skal kobles til valgt prosjekt.
+                </p>
+        
+                <select id="employeeSelect" class="team-select">
+                  <option value="">Velg ansatt</option>
+                </select>
+        
+                <div id="employeeModalState" class="team-modal-state"></div>
+              </div>
+        
+              <div class="team-modal-footer">
+                <button id="cancelEmployeeModalBtn" class="btn" type="button">Avbryt</button>
+                <button id="saveEmployeeBtn" class="btn primary" type="button">Legg til</button>
+              </div>
+            </div>
+          </div>
         <section class="panel card">
           <div class="section-title">Prosjektbeskrivelse</div>
           <p class="section-description">En beskrivelse av prosjektet, mål og kontekst.</p>
@@ -129,5 +163,6 @@
   <script type="module" src="script.js"></script>
   <script type="module" src="employee-file-manager.js"></script>
   <script type="module" src="analytics.js"></script>
+  <script type="module" src="team-overview.js"></script>
 </body>
 </html>
