@@ -1,358 +1,382 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore,
   collection,
+  addDoc,
   getDocs,
   query,
   where,
-  updateDoc,
+  orderBy,
+  serverTimestamp,
   doc,
-  addDoc,
-  serverTimestamp
+  updateDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getStorage,
   ref,
   uploadBytes,
-  getDownloadURL
+  getDownloadURL,
+  deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
+/* =========================================================
+   FIREBASE CONFIG
+========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
   authDomain: "noragenticportal.firebaseapp.com",
+  databaseURL: "https://noragenticportal-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "noragenticportal",
   storageBucket: "noragenticportal.firebasestorage.app",
   messagingSenderId: "662374310916",
-  appId: "1:662374310916:web:a3a5d708bdd380a7210151",
+  appId: "1:662374310916:web:a3a5d708bdd380a7210151"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app     = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
 const storage = getStorage(app);
 
+/* =========================================================
+   TILSTAND
+========================================================= */
+let currentProjectId = window.currentProjectId || "PROJECT_ABC_123";
+let currentFolderId  = null; // null = rot-nivå
+let folderStack      = [];   // breadcrumb-stack: [{id, name}]
+
+/* =========================================================
+   DOM-REFERANSER
+========================================================= */
+const contentsList  = document.getElementById("contentsList");
 const breadcrumbBar = document.getElementById("breadcrumbBar");
-const contentsList = document.getElementById("contentsList");
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
-const newFolderBtn = document.getElementById("newFolderBtn");
+const uploadBtn     = document.getElementById("uploadBtn");
+const fileInput     = document.getElementById("fileInput");
+const newFolderBtn  = document.getElementById("newFolderBtn");
 
-let currentProjectId = null;
-let currentFolderId = null;
-let currentPath = [{ id: null, name: "Home" }];
+if (!contentsList) {
+  // Ikke på riktig side
+} else {
 
-function formatDate(timestamp) {
-  if (!timestamp) return "-";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString("no-NO");
-}
+  /* =========================================================
+     BREADCRUMB
+  ========================================================= */
+  function renderBreadcrumb() {
+    breadcrumbBar.innerHTML = "";
 
-function escapeHtml(text) {
-  if (text === null || text === undefined) return "";
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+    const rootBtn = document.createElement("button");
+    rootBtn.className    = "breadcrumb-link";
+    rootBtn.textContent  = "Rot";
+    rootBtn.addEventListener("click", () => navigateToRoot());
+    breadcrumbBar.appendChild(rootBtn);
 
+    folderStack.forEach((folder, i) => {
+      const sep = document.createElement("span");
+      sep.className   = "breadcrumb-separator";
+      sep.textContent = "/";
+      breadcrumbBar.appendChild(sep);
 
-async function ensureFirebaseLogin() {
-  try {
-    await signInWithEmailAndPassword(auth, "test@test.no", "123456");
-  } catch (e) {
-    console.error("Firebase login feilet:", e);
+      if (i === folderStack.length - 1) {
+        const cur = document.createElement("span");
+        cur.className   = "breadcrumb-current";
+        cur.textContent = folder.name;
+        breadcrumbBar.appendChild(cur);
+      } else {
+        const btn = document.createElement("button");
+        btn.className   = "breadcrumb-link";
+        btn.textContent = folder.name;
+        btn.addEventListener("click", () => navigateToFolder(folder.id, folder.name, i));
+        breadcrumbBar.appendChild(btn);
+      }
+    });
   }
-}
 
-function renderBreadcrumbs() {
-  if (!breadcrumbBar) return;
+  function navigateToRoot() {
+    currentFolderId = null;
+    folderStack     = [];
+    renderBreadcrumb();
+    loadContents();
+  }
 
-  const html = currentPath.map((segment, index) => {
-    const isLast = index === currentPath.length - 1;
+  function navigateToFolder(folderId, folderName, stackIndex) {
+    folderStack     = folderStack.slice(0, stackIndex + 1);
+    currentFolderId = folderId;
+    renderBreadcrumb();
+    loadContents();
+  }
 
-    if (isLast) {
-      return `<span class="breadcrumb-current">${escapeHtml(segment.name)}</span>`;
+  function openFolder(folderId, folderName) {
+    folderStack.push({ id: folderId, name: folderName });
+    currentFolderId = folderId;
+    renderBreadcrumb();
+    loadContents();
+  }
+
+  /* =========================================================
+     LAST INN INNHOLD
+     // Mohamed – fikset compound query-feil ved å filtrere
+     // parentId og folderId lokalt i JS i stedet for i Firestore,
+     // slik at det ikke kreves composite indexes i Firebase Console.
+  ========================================================= */
+  async function loadContents() {
+    contentsList.className   = "loading-state";
+    contentsList.textContent = "Laster...";
+
+    try {
+      // Mohamed – kun én where() per query for å unngå index-krav
+      const foldersSnap = await getDocs(query(
+        collection(db, "folders"),
+        where("projectId", "==", currentProjectId)
+      ));
+      const folders = [];
+      foldersSnap.forEach(d => {
+        const data = d.data();
+        // Mohamed – filtrer riktig mappe-nivå lokalt
+        const parent = data.parentId ?? null;
+        if (parent === currentFolderId) {
+          folders.push({ id: d.id, ...data });
+        }
+      });
+
+      // Mohamed – samme løsning for filer
+      const filesSnap = await getDocs(query(
+        collection(db, "files"),
+        where("projectId", "==", currentProjectId)
+      ));
+      const files = [];
+      filesSnap.forEach(d => {
+        const data = d.data();
+        const folder = data.folderId ?? null;
+        if (folder === currentFolderId) {
+          files.push({ id: d.id, ...data });
+        }
+      });
+
+      renderContents(folders, files);
+
+    } catch (e) {
+      contentsList.className   = "error-state";
+      contentsList.textContent = "Feil ved lasting: " + e.message;
+      console.error(e);
     }
-
-    return `
-      <button class="breadcrumb-link" data-path-index="${index}">
-        ${escapeHtml(segment.name)}
-      </button>
-      <span class="breadcrumb-separator">/</span>
-    `;
-  }).join("");
-
-  breadcrumbBar.innerHTML = html;
-
-  breadcrumbBar.querySelectorAll("[data-path-index]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const index = Number(btn.dataset.pathIndex);
-      currentPath = currentPath.slice(0, index + 1);
-      currentFolderId = currentPath[currentPath.length - 1].id;
-      renderBreadcrumbs();
-      await loadContents();
-    });
-  });
-}
-
-async function setVisibility(fileId, isVisible) {
-  try {
-    await updateDoc(doc(db, "files", fileId), {
-      customerVisibility: isVisible
-    });
-  } catch (e) {
-    console.error("Visibility update feilet:", e);
-    alert("Kunne ikke oppdatere visibility.");
   }
-}
 
-async function loadContents() {
-  if (!currentProjectId || !contentsList) return;
-
-  contentsList.className = "loading-state";
-  contentsList.innerHTML = "Laster...";
-
-  try {
-    const foldersQuery = query(
-      collection(db, "folders"),
-      where("projectId", "==", currentProjectId),
-      where("parentFolderId", "==", currentFolderId)
-    );
-
-    const filesQuery = query(
-      collection(db, "files"),
-      where("projectId", "==", currentProjectId),
-      where("folderId", "==", currentFolderId)
-    );
-
-    const [foldersSnapshot, filesSnapshot] = await Promise.all([
-      getDocs(foldersQuery),
-      getDocs(filesQuery)
-    ]);
-
-    const folders = [];
-    const files = [];
-
-    foldersSnapshot.forEach((docSnap) => {
-      folders.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    filesSnapshot.forEach((docSnap) => {
-      files.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    folders.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    files.sort((a, b) => (b.dateUploaded?.seconds || 0) - (a.dateUploaded?.seconds || 0));
-
+  /* =========================================================
+     RENDER TABELL
+  ========================================================= */
+  function renderContents(folders, files) {
     if (folders.length === 0 && files.length === 0) {
-      contentsList.className = "empty-state";
-      contentsList.innerHTML = "Denne mappen er tom.";
+      contentsList.className  = "empty-state";
+      contentsList.textContent = "Ingen filer eller mapper her ennå.";
       return;
     }
 
-    let html = `
-      <div class="table-wrap">
-        <table class="files-table employee-files-table">
-          <thead>
-            <tr>
-              <th>Navn</th>
-              <th>Type</th>
-              <th>Lastet opp</th>
-              <th>Av</th>
-              <th>Visibility</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    contentsList.className = "table-wrap";
+    contentsList.innerHTML = "";
 
-    folders.forEach((folder) => {
-      html += `
+    const table = document.createElement("table");
+    table.className = "files-table";
+
+    table.innerHTML = `
+      <thead>
         <tr>
-          <td>
-            <button
-              class="link-button"
-              data-folder-id="${folder.id}"
-              data-folder-name="${escapeHtml(folder.name || "")}"
-            >
-              ${escapeHtml(folder.name || "-")}
-            </button>
-          </td>
-          <td>Mappe</td>
-          <td>${formatDate(folder.createdAt)}</td>
-          <td>${escapeHtml(folder.createdBy || "-")}</td>
-          <td>-</td>
+          <th>Navn</th>
+          <th>Type</th>
+          <th>Synlig for kunde</th>
+          <th>Handlinger</th>
         </tr>
-      `;
-    });
+      </thead>`;
 
-    files.forEach((file) => {
-      const checked = file.customerVisibility ? "checked" : "";
+    const tbody = document.createElement("tbody");
 
-      const nameCell = file.fileUrl
-        ? `<a class="file-link" href="${escapeHtml(file.fileUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(file.filename || "")}</a>`
-        : escapeHtml(file.filename || "-");
+    /* --- Mapper --- */
+    folders.forEach(folder => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>
+          <button class="link-button">📁 ${escHtml(folder.name)}</button>
+        </td>
+        <td>Mappe</td>
+        <td class="visibility-cell">
+          <input type="checkbox" class="visibility-toggle"
+            ${folder.visibleToClient ? "checked" : ""} />
+        </td>
+        <td>
+          <button class="upload-btn secondary" style="padding:4px 10px;font-size:12px">
+            Slett
+          </button>
+        </td>`;
 
-      html += `
-        <tr>
-          <td>${nameCell}</td>
-          <td>Fil</td>
-          <td>${formatDate(file.dateUploaded)}</td>
-          <td>${escapeHtml(file.uploadedBy || "-")}</td>
-          <td>
-            <label class="visibility-cell">
-              <input type="checkbox" class="visibility-toggle" data-file-id="${file.id}" ${checked}>
-            </label>
-          </td>
-        </tr>
-      `;
-    });
-
-    html += `
-          </tbody>
-        </table>
-      </div>
-    `;
-
-    contentsList.className = "";
-    contentsList.innerHTML = html;
-
-    contentsList.querySelectorAll("[data-folder-id]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        currentFolderId = btn.dataset.folderId;
-        currentPath.push({
-          id: btn.dataset.folderId,
-          name: btn.dataset.folderName
-        });
-        renderBreadcrumbs();
-        await loadContents();
+      tr.querySelector(".link-button").addEventListener("click", () => {
+        openFolder(folder.id, folder.name);
       });
-    });
 
-    contentsList.querySelectorAll(".visibility-toggle").forEach((checkbox) => {
-      checkbox.addEventListener("change", async () => {
-        await setVisibility(checkbox.dataset.fileId, checkbox.checked);
+      tr.querySelector(".visibility-toggle").addEventListener("change", async (e) => {
+        try {
+          await updateDoc(doc(db, "folders", folder.id), {
+            visibleToClient: e.target.checked
+          });
+        } catch (err) { console.error(err); }
       });
-    });
-  } catch (e) {
-    console.error("Load contents error:", e);
-    contentsList.className = "error-state";
-    contentsList.innerHTML = "Kunne ikke laste filer.";
-  }
-}
 
-async function uploadSelectedFile(file) {
-  if (!file || !currentProjectId) return;
+      tr.querySelector(".upload-btn").addEventListener("click", async () => {
+        if (!confirm(`Slett mappen "${folder.name}"?`)) return;
+        try {
+          await deleteDoc(doc(db, "folders", folder.id));
+          loadContents();
+        } catch (err) { console.error(err); }
+      });
 
-  try {
-    if (uploadBtn) {
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = "Laster opp...";
-    }
-
-    const uniqueFileName = `${Date.now()}-${file.name}`;
-
-const storageRef = ref(storage, `projects/${currentProjectId}/${uniqueFileName}`);
-await uploadBytes(storageRef, file);
-const downloadURL = await getDownloadURL(storageRef);
-
-await addDoc(collection(db, "files"), {
-  filename: file.name,
-  fileUrl: downloadURL,
-  storagePath: `projects/${currentProjectId}/${uniqueFileName}`,
-  projectId: currentProjectId,
-  folderId: currentFolderId || null,
-  uploadedBy: "Ansatt",
-  customerVisibility: false,
-  dateUploaded: serverTimestamp()
-});
-
-
-    fileInput.value = "";
-    await loadContents();
-  } catch (e) {
-    console.error("Upload error:", e);
-    alert("Feil ved opplasting");
-  } finally {
-    if (uploadBtn) {
-      uploadBtn.disabled = false;
-      uploadBtn.textContent = "Last opp";
-    }
-  }
-}
-
-async function createFolder() {
-  if (!currentProjectId) {
-    alert("Ingen prosjekt valgt");
-    return;
-  }
-
-  const name = prompt("Navn på ny mappe:");
-
-  if (!name || !name.trim()) return;
-
-  try {
-    if (newFolderBtn) {
-      newFolderBtn.disabled = true;
-      newFolderBtn.textContent = "Oppretter...";
-    }
-
-    await addDoc(collection(db, "folders"), {
-      name: name.trim(),
-      projectId: currentProjectId,
-      parentFolderId: currentFolderId || null,
-      createdAt: serverTimestamp(),
-      createdBy: "Ansatt"
+      tbody.appendChild(tr);
     });
 
-    await loadContents();
-  } catch (e) {
-    console.error("Opprett mappe feilet:", e);
-    alert("Kunne ikke opprette mappe");
-  } finally {
-    if (newFolderBtn) {
-      newFolderBtn.disabled = false;
-      newFolderBtn.textContent = "Ny mappe";
-    }
-  }
-}
+    /* --- Filer --- */
+    files.forEach(file => {
+      // Mohamed – la til fallback for fileName slik at eldre filer
+      // uten dette feltet ikke krasjer escHtml() med undefined
+      const displayName = file.fileName || file.name || file.message || "Ukjent fil";
+      const fileUrl     = file.fileUrl  || file.url  || "#";
 
-if (uploadBtn && fileInput) {
-  uploadBtn.addEventListener("click", () => {
-    fileInput.click();
-  });
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>
+          <a class="file-link" href="${fileUrl}" target="_blank" rel="noopener">
+            📄 ${escHtml(displayName)}
+          </a>
+        </td>
+        <td>Fil</td>
+        <td class="visibility-cell">
+          <input type="checkbox" class="visibility-toggle"
+            ${file.visibleToClient ? "checked" : ""} />
+        </td>
+        <td>
+          <button class="upload-btn secondary" style="padding:4px 10px;font-size:12px">
+            Slett
+          </button>
+        </td>`;
+
+      tr.querySelector(".visibility-toggle").addEventListener("change", async (e) => {
+        try {
+          await updateDoc(doc(db, "files", file.id), {
+            visibleToClient: e.target.checked
+          });
+        } catch (err) { console.error(err); }
+      });
+
+      tr.querySelector(".upload-btn").addEventListener("click", async () => {
+        if (!confirm(`Slett filen "${displayName}"?`)) return;
+        try {
+          const fileRef = ref(storage, `files/${currentProjectId}/${displayName}`);
+          await deleteObject(fileRef).catch(() => {});
+          await deleteDoc(doc(db, "files", file.id));
+          loadContents();
+        } catch (err) { console.error(err); }
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    contentsList.appendChild(table);
+  }
+
+  /* =========================================================
+     LAST OPP FIL
+     NB: projectId-felt lagres slik at analytics.js kan telle
+  ========================================================= */
+  uploadBtn.addEventListener("click", () => fileInput.click());
 
   fileInput.addEventListener("change", async () => {
-    const file = fileInput.files?.[0];
-    await uploadSelectedFile(file);
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    uploadBtn.disabled    = true;
+    uploadBtn.textContent = "Laster opp…";
+
+    try {
+      const path    = `files/${currentProjectId}/${Date.now()}_${file.name}`;
+      const fileRef = ref(storage, path);
+
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+
+      await addDoc(collection(db, "files"), {
+        fileName:        file.name,
+        fileUrl:         url,
+        projectId:       currentProjectId,   // Mohamed – projectId lagres slik at analytics.js kan telle filer per prosjekt
+        folderId:        currentFolderId,
+        visibleToClient: false,
+        uploadedBy:      auth.currentUser?.uid || "anon",
+        createdAt:       serverTimestamp()
+      });
+
+      fileInput.value = "";
+      loadContents();
+
+      // Oppdater analytics etter opplasting
+      window.dispatchEvent(
+        new CustomEvent("projectChanged", { detail: { projectId: currentProjectId } })
+      );
+
+    } catch (e) {
+      alert("Feil ved opplasting: " + e.message);
+      console.error(e);
+    } finally {
+      uploadBtn.disabled    = false;
+      uploadBtn.textContent = "Last opp";
+    }
   });
+
+  /* =========================================================
+     NY MAPPE
+  ========================================================= */
+  newFolderBtn.addEventListener("click", async () => {
+    const name = prompt("Navn på ny mappe:");
+    if (!name?.trim()) return;
+
+    try {
+      await addDoc(collection(db, "folders"), {
+        name:            name.trim(),
+        projectId:       currentProjectId,
+        parentId:        currentFolderId,
+        visibleToClient: false,
+        createdAt:       serverTimestamp()
+      });
+      loadContents();
+    } catch (e) {
+      alert("Kunne ikke opprette mappe: " + e.message);
+      console.error(e);
+    }
+  });
+
+  /* =========================================================
+     PROSJEKTBYTTE
+  ========================================================= */
+  window.addEventListener("projectChanged", (e) => {
+    const newId = e.detail?.projectId;
+    if (newId && newId !== currentProjectId) {
+      currentProjectId = newId;
+      currentFolderId  = null;
+      folderStack      = [];
+      renderBreadcrumb();
+      loadContents();
+    }
+  });
+
+  /* =========================================================
+     INIT
+  ========================================================= */
+  renderBreadcrumb();
+  loadContents();
+
+} // end if contentsList
+
+/* =========================================================
+   HJELPEFUNKSJON
+   // Mohamed – escHtml brukes for å unngå XSS når filnavn
+   // vises direkte i innerHTML
+========================================================= */
+function escHtml(str) {
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
-
-if (newFolderBtn) {
-  newFolderBtn.addEventListener("click", createFolder);
-}
-
-window.addEventListener("projectChanged", async (event) => {
-  currentProjectId = event.detail.projectId;
-  await ensureFirebaseLogin();
-  currentFolderId = null;
-  currentPath = [{ id: null, name: "Home" }];
-  renderBreadcrumbs();
-  await loadContents();
-});
-
-async function initFileManager() {
-  await ensureFirebaseLogin();
-
-  if (window.currentProjectId) {
-    currentProjectId = window.currentProjectId;
-    currentFolderId = null;
-    currentPath = [{ id: null, name: "Home" }];
-    renderBreadcrumbs();
-    await loadContents();
-  }
-}
-
-initFileManager();

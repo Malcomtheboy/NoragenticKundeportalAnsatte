@@ -1,40 +1,58 @@
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 /* =========================================================
-   SIDE-DETEKSJON
+   FIREBASE CONFIG
 ========================================================= */
-const isLoginPage = !!document.getElementById("loginForm");
+const firebaseConfig = {
+  apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
+  authDomain: "noragenticportal.firebaseapp.com",
+  databaseURL: "https://noragenticportal-default-rtdb.europe-west1.firebasedatabase.app/",
+  projectId: "noragenticportal",
+  storageBucket: "noragenticportal.firebasestorage.app",
+  messagingSenderId: "662374310916",
+  appId: "1:662374310916:web:a3a5d708bdd380a7210151"
+};
+
+const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const isLoginPage     = !!document.getElementById("loginForm");
 const isDashboardPage = !!document.getElementById("projectName");
-const userRole = localStorage.getItem("employee_role");
 
 /* =========================================================
-   ROUTE GUARD (midlertidig frontend-flow)
+   ROUTE GUARD
 ========================================================= */
-(function guardPages() {
-  const path = (window.location.pathname || "").toLowerCase();
-  const onLogin = path.endsWith("login.html");
+onAuthStateChanged(auth, (user) => {
+  const path        = (window.location.pathname || "").toLowerCase();
+  const onLogin     = path.endsWith("login.html");
   const onDashboard = path.endsWith("index.html") || path.endsWith("/");
-
-  const loggedIn = localStorage.getItem("employee_logged_in") === "true";
-
-  if (onDashboard && !loggedIn) window.location.href = "login.html";
-  if (onLogin && loggedIn) window.location.href = "index.html";
-})();
+  if (onDashboard && !user) window.location.href = "login.html";
+  if (onLogin     &&  user) window.location.href = "index.html";
+});
 
 /* =========================================================
    LOGIN
 ========================================================= */
 if (isLoginPage) {
-  const form = document.getElementById("loginForm");
-  const hint = document.getElementById("hint");
+  const form  = document.getElementById("loginForm");
+  const hint  = document.getElementById("hint");
+  const email = document.getElementById("loginEmail");
+  const pass  = document.getElementById("loginPassword");
 
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    localStorage.setItem("employee_logged_in", "true");
-
     hint.textContent = "Logger inn…";
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 300);
+    try {
+      await signInWithEmailAndPassword(auth, email.value.trim(), pass.value);
+    } catch (err) {
+      hint.textContent = "Feil e-post eller passord.";
+    }
   });
 }
 
@@ -42,127 +60,52 @@ if (isLoginPage) {
    DASHBOARD
 ========================================================= */
 if (isDashboardPage) {
+
   const projects = {
-    p1: {
-      name: "Prosjekt 1",
-      goal: "Her kan prosjektets aktive delmål vises",
-      id: "PROJECT_ABC_123"
-    },
-    p2: {
-      name: "Prosjekt 2",
-      goal: "Her kan status for prosjekt 2 vises",
-      id: "PROJECT_DEF_456"
-    },
-    p3: {
-      name: "Prosjekt 3",
-      goal: "Her kan status for prosjekt 3 vises",
-      id: "PROJECT_GHI_789"
-    }
+    p1: { name: "Prosjekt 1", id: "PROJECT_ABC_123" },
+    p2: { name: "Prosjekt 2", id: "PROJECT_DEF_456" },
+    p3: { name: "Prosjekt 3", id: "PROJECT_GHI_789" }
   };
 
-  let currentProject = "p1";
+  let current = "p1";
 
-  const projectName = document.getElementById("projectName");
-  const projectGoal = document.getElementById("projectGoal");
-  const tabs = document.querySelectorAll(".tab[data-project]");
+  const projectNameEl = document.getElementById("projectName");
+  const tabs          = document.querySelectorAll(".tab[data-project]");
 
-  const projectDescription = document.getElementById("projectDescription");
-  const customerDescription = document.getElementById("customerDescription");
+  function activateProject(key) {
+    current = key;
+    const p = projects[key];
+    if (projectNameEl) projectNameEl.textContent = p.name;
 
-  const createCustomerBtn = document.getElementById("createCustomerBtn");
-  const createProjectBtn = document.getElementById("createProjectBtn");
-
-  function renderProject(project) {
-    projectName.textContent = project.name;
-    projectGoal.textContent = project.goal;
-  }
-
-  function loadDescription(projectKey) {
-    if (projectDescription) {
-      projectDescription.textContent =
-        localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
-    }
-
-    if (customerDescription) {
-      customerDescription.textContent =
-        localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
-    }
-  }
-
-  function saveDescription(projectKey) {
-    if (projectDescription) {
-      localStorage.setItem(
-        `employee_projectDescription_${projectKey}`,
-        projectDescription.textContent.trim()
-      );
-    }
-
-    if (customerDescription) {
-      localStorage.setItem(
-        `employee_customerDescription_${projectKey}`,
-        customerDescription.textContent.trim()
-      );
-    }
-  }
-
-  if (projectDescription) {
-    projectDescription.addEventListener("blur", () => {
-      saveDescription(currentProject);
-    });
-  }
-
-  if (customerDescription) {
-    customerDescription.addEventListener("blur", () => {
-      saveDescription(currentProject);
-    });
-  }
-
-  function updateFileManager(projectId) {
-    window.currentProjectId = projectId;
-
-    window.dispatchEvent(
-      new CustomEvent("projectChanged", {
-        detail: { projectId }
-      })
-    );
+    window.currentProjectId = p.id;
+    window.dispatchEvent(new CustomEvent("projectChanged", { detail: { projectId: p.id } }));
   }
 
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("is-active"));
       tab.classList.add("is-active");
-
-      currentProject = tab.dataset.project;
-      renderProject(projects[currentProject]);
-      loadDescription(currentProject);
-      updateFileManager(projects[currentProject].id);
+      activateProject(tab.dataset.project);
     });
   });
 
-  // Vis owner-knapper kun for owner
-  if (userRole === "owner") {
-    if (createCustomerBtn) {
-      createCustomerBtn.classList.remove("hidden");
-    }
+  // Init med første prosjekt
+  activateProject("p1");
 
-    if (createProjectBtn) {
-      createProjectBtn.classList.remove("hidden");
-    }
+  /* Logg ut */
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
   }
 
-  renderProject(projects[currentProject]);
-  loadDescription(currentProject);
-  updateFileManager(projects[currentProject].id);
-}
-
-/* =========================================================
-   LOGG UT
-========================================================= */
-const logoutBtn = document.getElementById("logoutBtn");
-
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
-    localStorage.removeItem("employee_logged_in");
-    window.location.href = "login.html";
-  });
+  /* Rediger-knapp i hero */
+  const editBtn = document.getElementById("heroEditBtn");
+  if (editBtn) {
+    editBtn.addEventListener("click", () => {
+      if (window.openAdminModal) window.openAdminModal();
+    });
+  }
 }

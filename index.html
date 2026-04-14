@@ -11,51 +11,55 @@
 
   <header class="topbar">
     <div class="logo">N</div>
-
     <nav class="project-tabs">
       <button class="tab is-active" data-project="p1">Prosjekt 1</button>
       <button class="tab" data-project="p2">Prosjekt 2</button>
       <button class="tab" data-project="p3">Prosjekt 3</button>
       <button class="tab">Flere</button>
     </nav>
-
-<div class="topbar-actions">
-  <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
-  <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
-  <button class="btn small" id="logoutBtn">Logg ut</button>
-</div>
+    <button class="btn small" id="logoutBtn">Logg ut</button>
   </header>
 
   <main class="wrap">
 
     <section class="hero">
+
       <div class="card small">
         <div class="label">Valgt prosjekt</div>
         <div class="big" id="projectName">Prosjekt 1</div>
       </div>
 
       <div class="card wide">
-        <div class="label">Prosjektstatus / delmål</div>
-        <div class="big" id="projectGoal">Her vises prosjektstatus / delmål</div>
-
-        <div class="placeholder-line">
-          <span>Statuskomponent kobles inn her</span>
+        <div class="hero-top-row">
+          <div class="hero-goal-block">
+            <div class="label">Nåværende delmål:</div>
+            <!-- goalText fra Firestore oppdateres av analytics.js -->
+            <div class="big" id="projectGoal">Her kan prosjektets aktive delmål vises</div>
+          </div>
+          <div class="hero-right">
+            <div class="hero-pct-badge" id="heroProgressPct">0%</div>
+            <!-- Rediger-knapp åpner admin modal -->
+            <button class="hero-edit-btn" id="heroEditBtn" title="Rediger prosjekt">✏️</button>
+          </div>
+        </div>
+        <div class="hero-bar-track">
+          <div class="hero-bar-fill" id="heroProgressBar" style="width:0%"></div>
         </div>
       </div>
+
     </section>
 
     <section class="dashboard">
 
       <div class="left-column">
+
         <section class="panel card">
           <div class="section-title">Ukesstatus</div>
-          <p class="section-description">
-            Dette området kan brukes til ukentlig statusoppdatering og fremdrift.
-          </p>
-          <div class="placeholder-box" id="weekPlaceholder">
-            <div class="placeholder-title">Placeholder for ukesstatus</div>
-            <div class="placeholder-text">
-              Her kan ansatte oppdatere og lese ukesstatus.
+          <p class="section-description">Ukentlig fremdrift og statistikk – oppdateres i sanntid.</p>
+          <div id="weekPlaceholder">
+            <div class="analytics-loading">
+              <div class="analytics-spinner"></div>
+              <span>Kobler til database…</span>
             </div>
           </div>
         </section>
@@ -65,12 +69,11 @@
             <div class="file-manager-topbar">
               <div id="breadcrumbBar" class="breadcrumb-bar"></div>
               <div class="file-actions">
-                <button id="newFolderBtn" class="upload-btn secondary" type="button">Ny mappe</button> <!-- 🔥 NYTT -->
+                <button id="newFolderBtn" class="upload-btn secondary" type="button">Ny mappe</button>
                 <button id="uploadBtn" class="upload-btn" type="button">Last opp</button>
               </div>
             </div>
             <input type="file" id="fileInput" hidden />
-
             <div id="contentsList" class="loading-state">Laster...</div>
           </div>
         </section>
@@ -78,146 +81,56 @@
       </div>
 
       <div class="right-column">
+
         <section class="panel card">
           <div class="section-title">Ansatte på prosjekt</div>
-          <p class="section-description">
-            Oversikt over hvilke ansatte som er tilknyttet prosjektet og deres roller.
-          </p>
-          
-          <div class="placeholder-box" id="teamPlaceholder">
+          <p class="section-description">Oversikt over ansatte tilknyttet prosjektet og deres roller.</p>
+          <div class="placeholder-box">
             <div class="placeholder-title">Placeholder for teamoversikt</div>
-            <div class="placeholder-text">
-              Her kan tabell eller liste med ansatte og roller kobles inn.
-            </div>
+            <div class="placeholder-text">Her kan tabell eller liste med ansatte og roller kobles inn.</div>
           </div>
-       
         </section>
+
         <section class="panel card">
           <div class="section-title">Prosjektbeskrivelse</div>
-          <p class="section-description">
-            Dette området kan vise en beskrivelse av prosjektet, mål og kontekst.
-          </p>
-          <div id="projectDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
+          <p class="section-description">En beskrivelse av prosjektet, mål og kontekst.</p>
+          <div class="placeholder-box">
+            <div class="placeholder-title">Placeholder for prosjektbeskrivelse</div>
+            <div class="placeholder-text">Her kan tekst fra database eller backend vises.</div>
+          </div>
         </section>
 
-          <section class="panel card">
-        <div class="section-title">Kundebeskrivelse</div>
-        <p class="section-description">
-           Dette området kan brukes til info om kunden og behovene deres.
-          </p>
-        <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
-        </section>
- 
-      
-        
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
-          <p class="section-description">
-            Her er gruppechat mellom kunde og ansatte på prosjektet.
-          </p>
+          <p class="section-description">Her er gruppechat mellom kunde og ansatte på prosjektet.</p>
           <div class="chat-box">
-
             <div id="chatMessages" class="chat-messages"></div>
-          
             <form id="chatForm" class="chat-input">
               <input id="chatInput" type="text" placeholder="Skriv melding..." />
               <button type="submit" class="btn">Send</button>
             </form>
-          
             <button id="testBtn" class="btn small">Test DB</button>
-          
+          </div>
+        </section>
+
+        <section class="panel card">
+          <div class="section-title">Handlinger</div>
+          <p class="section-description">Administrasjon og oppdatering av prosjektinnhold.</p>
+          <div class="actions">
+            <button class="btn" onclick="window.openAdminModal && window.openAdminModal()">
+              ✏️ Rediger delmål, notat og fremdrift
+            </button>
+            <button class="btn">Administrer filer</button>
           </div>
         </section>
 
       </div>
-
     </section>
   </main>
 
-  <div class="modal-center is-hidden" id="createProjectModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett prosjekt</div>
-      <button class="x" id="closeProjectModal">✕</button>
-    </div>
-
-    <div class="center-body">
-      <label class="field">
-        <div class="field-label">Prosjektnavn</div>
-        <input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Kundenavn / firma</div>
-        <input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Beskrivelse</div>
-        <input id="projectDescriptionInput" type="text" placeholder="Kort prosjektbeskrivelse" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Startstatus / delmål</div>
-        <input id="projectGoalInput" type="text" placeholder="F.eks. Oppstart og planlegging" />
-      </label>
-
-      <p class="small-note">
-        Prosjektet lagres i Firestore og kan senere brukes når kundekontoer opprettes.
-      </p>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelProjectModal">Avbryt</button>
-      <button class="btn primary" id="saveProjectBtn">Opprett prosjekt</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-center is-hidden" id="createCustomerModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett kundekonto</div>
-      <button class="x" id="closeCustomerModal">✕</button>
-    </div>
-
-    <div class="center-body">
-      <label class="field">
-        <div class="field-label">Kundenavn</div>
-        <input id="customerNameInput" type="text" placeholder="F.eks. Firma AS" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">E-post</div>
-        <input id="customerEmailInput" type="email" placeholder="kunde@firma.no" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Passord</div>
-        <input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Prosjekt-ID</div>
-        <input id="customerProjectIdInput" type="text" placeholder="F.eks. PROJECT_ABC_123" />
-      </label>
-
-      <p class="small-note">
-        Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.
-      </p>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelCustomerModal">Avbryt</button>
-      <button class="btn primary" id="saveCustomerBtn">Opprett kunde</button>
-    </div>
-  </div>
-</div>
-
-  <script type="module" src="create-project.js"></script>
   <script type="module" src="chat.js"></script>
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
   <script type="module" src="employee-file-manager.js"></script>
-  <script type="module" src="create-customer.js"></script>
+  <script type="module" src="analytics.js"></script>
 </body>
 </html>
