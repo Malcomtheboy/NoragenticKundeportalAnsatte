@@ -6,9 +6,7 @@ import {
 
 import {
   doc,
-  setDoc,
-  collection,
-  getDocs
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* =========================================================
@@ -18,52 +16,20 @@ const createEmployeeBtn = document.getElementById("createEmployeeBtn");
 const modal = document.getElementById("createEmployeeModal");
 const closeBtn = document.getElementById("closeEmployeeModalX");
 const cancelBtn = document.getElementById("cancelEmployeeModal");
-const saveBtn = document.getElementById("saveEmployeeSaveBtn");
+const saveBtn = document.getElementById("createEmployeeSaveBtn");
 
 const nameInput = document.getElementById("employeeNameInput");
 const emailInput = document.getElementById("employeeEmailInput");
 const passwordInput = document.getElementById("employeePasswordInput");
-const projectSelect = document.getElementById("employeeProjectSelect");
 
 console.log("create-employee.js loaded");
 
 /* =========================================================
-   LOAD PROSJEKTER I DROPDOWN
-========================================================= */
-async function loadProjects() {
-  if (!projectSelect) {
-    console.error("projectSelect finnes ikke");
-    return;
-  }
-
-  projectSelect.innerHTML = `<option value="">Velg prosjekt</option>`;
-
-  try {
-    const snapshot = await getDocs(collection(db, "projects"));
-
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-
-      const option = document.createElement("option");
-      option.value = docSnap.id;
-      option.textContent = data.name || "Uten navn";
-
-      projectSelect.appendChild(option);
-    });
-
-  } catch (err) {
-    console.error("Feil ved lasting av prosjekter:", err);
-  }
-}
-
-/* =========================================================
    MODAL FUNKSJONER
 ========================================================= */
-async function openModal() {
+function openModal() {
   if (!modal) return;
-
   modal.classList.remove("is-hidden");
-  await loadProjects();
 }
 
 function closeModal() {
@@ -75,23 +41,18 @@ function clearForm() {
   if (nameInput) nameInput.value = "";
   if (emailInput) emailInput.value = "";
   if (passwordInput) passwordInput.value = "";
-  if (projectSelect) projectSelect.value = "";
 }
 
 /* =========================================================
    EVENT LISTENERS
 ========================================================= */
-
-// Åpne
 if (createEmployeeBtn) {
   createEmployeeBtn.addEventListener("click", openModal);
 }
 
-// Lukk
 if (closeBtn) closeBtn.addEventListener("click", closeModal);
 if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
 
-// Klikk utenfor
 if (modal) {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
@@ -108,9 +69,8 @@ if (saveBtn) {
     const name = nameInput?.value.trim();
     const email = emailInput?.value.trim();
     const password = passwordInput?.value.trim();
-    const projectId = projectSelect?.value;
 
-    if (!name || !email || !password || !projectId) {
+    if (!name || !email || !password) {
       alert("Fyll ut alle feltene.");
       return;
     }
@@ -127,26 +87,17 @@ if (saveBtn) {
         return;
       }
 
-      // Opprett bruker
+      // Opprett bruker i Firebase Auth
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCred.user;
 
-      // Lagre i Firestore
+      // Lagre i Firestore uten prosjektkobling
       await setDoc(doc(db, "users", newUser.uid), {
         name,
         email,
         role: "employee",
-        projectIds: [projectId]
+        projectIds: []
       });
-
-      // Koble til prosjekt
-      await setDoc(
-        doc(db, "projects", projectId),
-        {
-          employeeIds: [newUser.uid]
-        },
-        { merge: true }
-      );
 
       // Logg tilbake som owner
       await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
