@@ -17,7 +17,11 @@
       <button class="tab" data-project="p3">Prosjekt 3</button>
       <button class="tab">Flere</button>
     </nav>
-    <button class="btn small" id="logoutBtn">Logg ut</button>
+<div class="topbar-actions">
+  <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
+  <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
+  <button class="btn small" id="logoutBtn">Logg ut</button>
+</div>
   </header>
 
   <main class="wrap">
@@ -159,10 +163,92 @@
     </section>
   </main>
 
+  <div class="modal-center is-hidden" id="createProjectModal">
+  <div class="center-card">
+    <div class="center-head">
+      <div class="center-title">Opprett prosjekt</div>
+      <button class="x" id="closeProjectModal">✕</button>
+    </div>
+
+    <div class="center-body">
+      <label class="field">
+        <div class="field-label">Prosjektnavn</div>
+        <input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Kundenavn / firma</div>
+        <input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Beskrivelse</div>
+        <input id="projectDescriptionInput" type="text" placeholder="Kort prosjektbeskrivelse" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Startstatus / delmål</div>
+        <input id="projectGoalInput" type="text" placeholder="F.eks. Oppstart og planlegging" />
+      </label>
+
+      <p class="small-note">
+        Prosjektet lagres i Firestore og kan senere brukes når kundekontoer opprettes.
+      </p>
+    </div>
+
+    <div class="center-foot">
+      <button class="btn" id="cancelProjectModal">Avbryt</button>
+      <button class="btn primary" id="saveProjectBtn">Opprett prosjekt</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-center is-hidden" id="createCustomerModal">
+  <div class="center-card">
+    <div class="center-head">
+      <div class="center-title">Opprett kundekonto</div>
+      <button class="x" id="closeCustomerModal">✕</button>
+    </div>
+
+    <div class="center-body">
+      <label class="field">
+        <div class="field-label">Kundenavn</div>
+        <input id="customerNameInput" type="text" placeholder="F.eks. Firma AS" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">E-post</div>
+        <input id="customerEmailInput" type="email" placeholder="kunde@firma.no" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Passord</div>
+        <input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Prosjekt-ID</div>
+        <input id="customerProjectIdInput" type="text" placeholder="F.eks. PROJECT_ABC_123" />
+      </label>
+
+      <p class="small-note">
+        Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.
+      </p>
+    </div>
+
+    <div class="center-foot">
+      <button class="btn" id="cancelCustomerModal">Avbryt</button>
+      <button class="btn primary" id="saveCustomerBtn">Opprett kunde</button>
+    </div>
+  </div>
+</div>
+
+
   <script type="module" src="chat.js"></script>
   <script type="module" src="script.js"></script>
   <script type="module" src="employee-file-manager.js"></script>
+  <script type="module" src="create-project.js"></script>
+  <script type="module" src="create-customer.js"></script>
   <script type="module" src="analytics.js"></script>
-  <script type="module" src="team-overview.js"></script>
 </body>
 </html>

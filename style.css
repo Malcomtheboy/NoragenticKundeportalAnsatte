@@ -145,6 +145,24 @@ body{
   line-height:1.5;
 }
 
+.editable-box{
+  min-height:120px;
+  border:1px dashed rgba(255,255,255,0.18);
+  border-radius:14px;
+  padding:16px;
+  background:rgba(90, 108, 160, 0.18);
+  color:rgba(255,255,255,0.92);
+  font-size:14px;
+  line-height:1.5;
+  outline:none;
+  cursor:text;
+}
+
+.editable-box:empty::before{
+  content: attr(data-placeholder);
+  color: rgba(255,255,255,0.75);
+}
+
 .placeholder-box{
   min-height:140px;
   border:1px dashed rgba(255,255,255,0.22);
@@ -514,6 +532,10 @@ body{
 .other {
   background: #475569;
   color: white;
+}
+
+.hidden {
+    display: none;
 }
 
 /* =========================================================
@@ -1078,4 +1100,96 @@ body{
   .team-modal-footer{
     flex-direction:column;
   }
+}
+
+/* =========================================================
+   MODALER (Opprett prosjekt / Opprett kunde)
+========================================================= */
+.modal-center{
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.35);
+  z-index: 9999;
+}
+
+.modal-center.is-hidden{
+  display: none;
+}
+
+.center-card{
+  width: min(520px, 95vw);
+  background: rgba(15,18,24,0.96);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.center-head{
+  padding: 12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.center-title{
+  font-weight: 800;
+  color: rgba(255,255,255,0.95);
+}
+
+.center-body{
+  padding: 14px;
+  display:grid;
+  gap: 10px;
+}
+
+.center-foot{
+  padding: 12px 14px;
+  display:flex;
+  gap: 10px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.field{
+  display:grid;
+  gap: 6px;
+}
+
+.field-label{
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}
+
+.field input{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  outline: none;
+}
+
+.small-note{
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255,255,255,0.70);
+}
+
+.x{
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.topbar-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }

@@ -1,111 +1,136 @@
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { auth } from "./firebase-auth.js";
 import {
-  getAuth,
-  signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 /* =========================================================
-   FIREBASE CONFIG
+   SIDE-DETEKSJON
 ========================================================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
-  authDomain: "noragenticportal.firebaseapp.com",
-  databaseURL: "https://noragenticportal-default-rtdb.europe-west1.firebasedatabase.app/",
-  projectId: "noragenticportal",
-  storageBucket: "noragenticportal.firebasestorage.app",
-  messagingSenderId: "662374310916",
-  appId: "1:662374310916:web:a3a5d708bdd380a7210151"
-};
-
-const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-const isLoginPage     = !!document.getElementById("loginForm");
 const isDashboardPage = !!document.getElementById("projectName");
+const userRole = localStorage.getItem("employee_role");
 
 /* =========================================================
    ROUTE GUARD
 ========================================================= */
 onAuthStateChanged(auth, (user) => {
-  const path        = (window.location.pathname || "").toLowerCase();
-  const onLogin     = path.endsWith("login.html");
+  const path = (window.location.pathname || "").toLowerCase();
+  const onLogin = path.endsWith("login.html");
   const onDashboard = path.endsWith("index.html") || path.endsWith("/");
-  if (onDashboard && !user) window.location.href = "login.html";
-  if (onLogin     &&  user) window.location.href = "index.html";
+
+  if (onDashboard && !user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  if (onLogin && user) {
+    window.location.href = "index.html";
+  }
 });
-
-/* =========================================================
-   LOGIN
-========================================================= */
-if (isLoginPage) {
-  const form  = document.getElementById("loginForm");
-  const hint  = document.getElementById("hint");
-  const email = document.getElementById("loginEmail");
-  const pass  = document.getElementById("loginPassword");
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    hint.textContent = "Logger inn…";
-    try {
-      await signInWithEmailAndPassword(auth, email.value.trim(), pass.value);
-    } catch (err) {
-      hint.textContent = "Feil e-post eller passord.";
-    }
-  });
-}
 
 /* =========================================================
    DASHBOARD
 ========================================================= */
 if (isDashboardPage) {
-
   const projects = {
-    p1: { name: "Prosjekt 1", id: "PROJECT_ABC_123" },
-    p2: { name: "Prosjekt 2", id: "PROJECT_DEF_456" },
-    p3: { name: "Prosjekt 3", id: "PROJECT_GHI_789" }
+    p1: {
+      name: "Prosjekt 1",
+      goal: "Her kan prosjektets aktive delmål vises",
+      id: "PROJECT_ABC_123"
+    },
+    p2: {
+      name: "Prosjekt 2",
+      goal: "Her kan status for prosjekt 2 vises",
+      id: "PROJECT_DEF_456"
+    },
+    p3: {
+      name: "Prosjekt 3",
+      goal: "Her kan status for prosjekt 3 vises",
+      id: "PROJECT_GHI_789"
+    }
   };
 
-  let current = "p1";
+  let currentProject = "p1";
 
-  const projectNameEl = document.getElementById("projectName");
-  const tabs          = document.querySelectorAll(".tab[data-project]");
+  const projectName = document.getElementById("projectName");
+  const projectGoal = document.getElementById("projectGoal");
+  const tabs = document.querySelectorAll(".tab[data-project]");
 
-  function activateProject(key) {
-    current = key;
-    const p = projects[key];
-    if (projectNameEl) projectNameEl.textContent = p.name;
+  const createCustomerBtn = document.getElementById("createCustomerBtn");
+  const createProjectBtn = document.getElementById("createProjectBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const editBtn = document.getElementById("heroEditBtn");
 
-    window.currentProjectId = p.id;
-    window.dispatchEvent(new CustomEvent("projectChanged", { detail: { projectId: p.id } }));
+  function renderProject(project) {
+    if (projectName) projectName.textContent = project.name;
+    if (projectGoal) projectGoal.textContent = project.goal;
   }
 
-  tabs.forEach(tab => {
+  function updateFileManager(projectId) {
+    window.currentProjectId = projectId;
+
+    window.dispatchEvent(
+      new CustomEvent("projectChanged", {
+        detail: { projectId }
+      })
+    );
+  }
+
+  tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("is-active"));
+      tabs.forEach((t) => t.classList.remove("is-active"));
       tab.classList.add("is-active");
-      activateProject(tab.dataset.project);
+
+      currentProject = tab.dataset.project;
+      const project = projects[currentProject];
+
+      if (!project) return;
+
+      renderProject(project);
+      updateFileManager(project.id);
     });
   });
 
-  // Init med første prosjekt
-  activateProject("p1");
+  // Vis owner-knapper kun for owner
+  if (userRole === "owner") {
+    if (createCustomerBtn) {
+      createCustomerBtn.classList.remove("hidden");
+    }
+
+    if (createProjectBtn) {
+      createProjectBtn.classList.remove("hidden");
+    }
+  }
+
+  // Init første prosjekt
+  renderProject(projects[currentProject]);
+  updateFileManager(projects[currentProject].id);
 
   /* Logg ut */
-  const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
-      await signOut(auth);
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error("Feil ved logout:", error);
+      }
+
+      localStorage.removeItem("employee_logged_in");
+      localStorage.removeItem("employee_uid");
+      localStorage.removeItem("employee_role");
+      localStorage.removeItem("employee_name");
+      localStorage.removeItem("employee_email");
+
       window.location.href = "login.html";
     });
   }
 
   /* Rediger-knapp i hero */
-  const editBtn = document.getElementById("heroEditBtn");
   if (editBtn) {
     editBtn.addEventListener("click", () => {
-      if (window.openAdminModal) window.openAdminModal();
+      if (window.openAdminModal) {
+        window.openAdminModal();
+      }
     });
   }
 }
