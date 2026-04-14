@@ -60,10 +60,44 @@ if (isDashboardPage) {
   const createProjectBtn = document.getElementById("createProjectBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const editBtn = document.getElementById("heroEditBtn");
+  const projectDescription = document.getElementById("projectDescription");
+  const customerDescription = document.getElementById("customerDescription");
+
 
   function renderProject(project) {
     if (projectName) projectName.textContent = project.name;
     if (projectGoal) projectGoal.textContent = project.goal;
+  }
+  function loadDescription(projectKey) {
+  if (projectDescription) {
+    projectDescription.textContent = localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
+  }
+
+  if (customerDescription) {
+    customerDescription.textContent = localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
+  }
+  }
+
+function saveDescription(projectKey) {
+  if (projectDescription) {
+    localStorage.setItem(`employee_projectDescription_${projectKey}`, projectDescription.textContent.trim());
+  }
+
+  if (customerDescription) {
+    localStorage.setItem(`employee_customerDescription_${projectKey}`, customerDescription.textContent.trim());
+  }
+  }
+
+  if (projectDescription) {
+  projectDescription.addEventListener("blur", () => {
+    saveDescription(currentProject);
+  });
+  }
+
+  if (customerDescription) {
+  customerDescription.addEventListener("blur", () => {
+    saveDescription(currentProject);
+  });
   }
 
   function updateFileManager(projectId) {
@@ -87,6 +121,7 @@ if (isDashboardPage) {
       if (!project) return;
 
       renderProject(project);
+      loadDescription(currentProject);
       updateFileManager(project.id);
     });
   });
@@ -104,6 +139,7 @@ if (isDashboardPage) {
 
   // Init første prosjekt
   renderProject(projects[currentProject]);
+  loadDescription(currentProject);
   updateFileManager(projects[currentProject].id);
 
   /* Logg ut */
