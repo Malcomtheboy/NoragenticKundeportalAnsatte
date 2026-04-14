@@ -304,18 +304,17 @@ body{
   font-size:12px;
 }
 
-/* ===== FILE MANAGER ===== */
+/* ========== Filhåndtering ========== */
 
 .file-manager-shell{
   min-height:240px;
   border:1px solid rgba(255,255,255,0.08);
   border-radius:14px;
-  background:rgba(255,255,255,0.05); /* 🔥 samme som team */
+  background:rgba(255,255,255,0.05);
   padding:12px;
   color:var(--text);
 }
 
-/* Topbar */
 .file-manager-topbar{
   display:flex;
   align-items:center;
@@ -331,7 +330,7 @@ body{
   gap:6px;
   padding:10px 12px;
   border-radius:10px;
-  background:rgba(255,255,255,0.05); /* 🔥 samme */
+  background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
   font-size:13px;
 }
@@ -363,7 +362,7 @@ body{
   padding:14px;
   border-radius:10px;
   font-size:14px;
-  background:rgba(255,255,255,0.05); /* 🔥 unify */
+  background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
 }
 
@@ -386,12 +385,11 @@ body{
 
 .files-table{
   width:100%;
-  border-collapse:separate; /* 🔥 viktig for spacing */
-  border-spacing:0 6px;     /* 🔥 gir "cards" */
+  border-collapse:separate;
+  border-spacing:0 6px;
   font-size:13px;
 }
 
-/* Fjern gammel header style */
 .files-table thead{
   background:transparent;
 }
@@ -404,7 +402,7 @@ body{
 }
 
 .files-table tbody tr{
-  background:rgba(255,255,255,0.05); /* 🔥 EXACT samme som team */
+  background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
   border-radius:12px;
 }
@@ -415,7 +413,6 @@ body{
   color:var(--text);
 }
 
-/* Rundede kanter per rad */
 .files-table tbody tr td:first-child{
   border-top-left-radius:12px;
   border-bottom-left-radius:12px;
@@ -426,7 +423,6 @@ body{
   border-bottom-right-radius:12px;
 }
 
-/* Hover */
 .files-table tbody tr:hover{
   background:rgba(255,255,255,0.08);
 }
@@ -499,61 +495,6 @@ body{
   background:rgba(239,68,68,0.18);
 }
 
-/* -------- Chat -------- */
-.chat-box {
-  display: flex;
-  flex-direction: column;
-  height: 300px;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  background: #0f172a;
-  border-radius: 10px;
-  margin-bottom: 8px;
-}
-
-.chat-input {
-  display: flex;
-  gap: 5px;
-  padding: 4px 0;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.92);
-  outline: none;
-  font-size: 13px;
-}
-
-.msg {
-  padding: 8px 12px;
-  margin: 5px 0;
-  border-radius: 10px;
-  max-width: 70%;
-  font-size: 13px;
-}
-
-.me {
-  background: #3b82f6;
-  color: white;
-  margin-left: auto;
-}
-
-.other {
-  background: #475569;
-  color: white;
-}
-
-.hidden {
-    display: none;
-}
 /* -------- Chat -------- */
 .chat-box {
   display: flex;
