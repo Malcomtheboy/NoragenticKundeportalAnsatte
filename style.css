@@ -304,14 +304,15 @@ body{
   font-size:12px;
 }
 
-/* -------- Filbehandler -------- */
+/*___________________Filer__________________*/
 .file-manager-shell{
   min-height:240px;
-  border:1px solid rgba(255,255,255,0.14);
-  border-radius:14px;
-  background:rgba(255,255,255,0.92);
+  border:1px solid var(--stroke);
+  border-radius:var(--radius);
+  background:var(--card);
   padding:12px;
-  color:#1f2937;
+  color:var(--text);
+  backdrop-filter:blur(10px);
 }
 
 .file-manager-topbar{
@@ -329,11 +330,12 @@ body{
   gap:6px;
   padding:10px 12px;
   margin-bottom:0;
-  background:#f8fafc;
-  border:1px solid #e5e7eb;
-  border-radius:10px;
-  font-size:13px;
   min-height:42px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--stroke);
+  color:var(--text);
+  font-size:13px;
 }
 
 .breadcrumb-link{
@@ -341,7 +343,7 @@ body{
   border:none;
   padding:0;
   margin:0;
-  color:#2563eb;
+  color:rgba(255,255,255,0.85);
   font:inherit;
   font-weight:600;
   cursor:pointer;
@@ -349,21 +351,21 @@ body{
 
 .breadcrumb-current{
   font-weight:700;
-  color:#111827;
+  color:#fff;
 }
 
 .breadcrumb-separator{
-  color:#9ca3af;
+  color:rgba(255,255,255,0.45);
 }
 
 .upload-btn{
   width:auto;
   flex:0 0 auto;
   padding:10px 14px;
-  border:none;
-  border-radius:10px;
-  background:#2563eb;
-  color:#fff;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.10);
+  color:rgba(255,255,255,0.92);
   font-size:13px;
   font-weight:600;
   cursor:pointer;
@@ -371,7 +373,7 @@ body{
 }
 
 .upload-btn:hover{
-  background:#1d4ed8;
+  filter:brightness(1.08);
 }
 
 .upload-btn:disabled{
@@ -388,18 +390,18 @@ body{
 }
 
 .loading-state{
-  background:#eff6ff;
-  color:#1d4ed8;
+  background:rgba(59,130,246,0.15);
+  color:#93c5fd;
 }
 
 .empty-state{
-  background:#f9fafb;
-  color:#6b7280;
+  background:rgba(255,255,255,0.05);
+  color:var(--muted);
 }
 
 .error-state{
-  background:#fef2f2;
-  color:#b91c1c;
+  background:rgba(239,68,68,0.15);
+  color:#fca5a5;
 }
 
 .table-wrap{
@@ -413,39 +415,39 @@ body{
 }
 
 .files-table thead{
-  background:#f1f5f9;
+  background:rgba(255,255,255,0.06);
 }
 
 .files-table th,
 .files-table td{
   text-align:left;
   padding:10px 12px;
-  border-bottom:1px solid #e5e7eb;
-  color:#1f2937;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  color:var(--text);
   vertical-align:top;
 }
 
 .files-table th{
   font-weight:700;
-  color:#374151;
+  color:rgba(255,255,255,0.78);
 }
 
 .files-table tr:hover{
-  background:#f9fafb;
+  background:rgba(255,255,255,0.05);
 }
 
 .link-button{
   background:none;
   border:none;
   padding:0;
-  color:#2563eb;
+  color:#93c5fd;
   font:inherit;
   font-weight:600;
   cursor:pointer;
 }
 
 .file-link{
-  color:#2563eb;
+  color:#93c5fd;
   text-decoration:none;
   font-weight:600;
 }
@@ -474,14 +476,96 @@ body{
 }
 
 .upload-btn.secondary{
-  background:#e5e7eb;
-  color:#1f2937;
+  background:rgba(255,255,255,0.06);
+  color:var(--text);
+  border:1px solid rgba(255,255,255,0.14);
 }
 
 .upload-btn.secondary:hover{
-  background:#d1d5db;
+  background:rgba(255,255,255,0.10);
 }
 
+@media (max-width: 700px){
+  .file-manager-topbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .upload-btn{
+    width:100%;
+  }
+}
+
+.delete-file-btn{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(239,68,68,0.28);
+  background:rgba(239,68,68,0.12);
+  color:#fca5a5;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.delete-file-btn:hover{
+  background:rgba(239,68,68,0.18);
+}
+
+/* -------- Chat -------- */
+.chat-box {
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: #0f172a;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.chat-input {
+  display: flex;
+  gap: 5px;
+  padding: 4px 0;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  outline: none;
+  font-size: 13px;
+}
+
+.msg {
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 10px;
+  max-width: 70%;
+  font-size: 13px;
+}
+
+.me {
+  background: #3b82f6;
+  color: white;
+  margin-left: auto;
+}
+
+.other {
+  background: #475569;
+  color: white;
+}
+
+.hidden {
+    display: none;
+}
 /* -------- Chat -------- */
 .chat-box {
   display: flex;
