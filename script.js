@@ -32,113 +32,73 @@ onAuthStateChanged(auth, (user) => {
    DASHBOARD
 ========================================================= */
 if (isDashboardPage) {
-  const projects = {
-    p1: {
-      name: "Prosjekt 1",
-      goal: "Her kan prosjektets aktive delmål vises",
-      id: "PROJECT_ABC_123"
-    },
-    p2: {
-      name: "Prosjekt 2",
-      goal: "Her kan status for prosjekt 2 vises",
-      id: "PROJECT_DEF_456"
-    },
-    p3: {
-      name: "Prosjekt 3",
-      goal: "Her kan status for prosjekt 3 vises",
-      id: "PROJECT_GHI_789"
-    }
-  };
-
-  let currentProject = "p1";
-
-  const projectName = document.getElementById("projectName");
-  const projectGoal = document.getElementById("projectGoal");
-  const tabs = document.querySelectorAll(".tab[data-project]");
-
   const createCustomerBtn = document.getElementById("createCustomerBtn");
   const createProjectBtn = document.getElementById("createProjectBtn");
+  const createEmployeeBtn = document.getElementById("createEmployeeBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const editBtn = document.getElementById("heroEditBtn");
+
   const projectDescription = document.getElementById("projectDescription");
   const customerDescription = document.getElementById("customerDescription");
 
+  let currentProjectId = null;
 
-  function renderProject(project) {
-    if (projectName) projectName.textContent = project.name;
-    if (projectGoal) projectGoal.textContent = project.goal;
+  function loadDescription(projectId) {
+    if (!projectId) return;
+
+    if (projectDescription) {
+      projectDescription.textContent =
+        localStorage.getItem(`employee_projectDescription_${projectId}`) || "";
+    }
+
+    if (customerDescription) {
+      customerDescription.textContent =
+        localStorage.getItem(`employee_customerDescription_${projectId}`) || "";
+    }
   }
-  function loadDescription(projectKey) {
+
+  function saveDescription(projectId) {
+    if (!projectId) return;
+
+    if (projectDescription) {
+      localStorage.setItem(
+        `employee_projectDescription_${projectId}`,
+        projectDescription.textContent.trim()
+      );
+    }
+
+    if (customerDescription) {
+      localStorage.setItem(
+        `employee_customerDescription_${projectId}`,
+        customerDescription.textContent.trim()
+      );
+    }
+  }
+
   if (projectDescription) {
-    projectDescription.textContent = localStorage.getItem(`employee_projectDescription_${projectKey}`) || "";
-  }
-
-  if (customerDescription) {
-    customerDescription.textContent = localStorage.getItem(`employee_customerDescription_${projectKey}`) || "";
-  }
-  }
-
-function saveDescription(projectKey) {
-  if (projectDescription) {
-    localStorage.setItem(`employee_projectDescription_${projectKey}`, projectDescription.textContent.trim());
-  }
-
-  if (customerDescription) {
-    localStorage.setItem(`employee_customerDescription_${projectKey}`, customerDescription.textContent.trim());
-  }
-  }
-
-  if (projectDescription) {
-  projectDescription.addEventListener("blur", () => {
-    saveDescription(currentProject);
-  });
-  }
-
-  if (customerDescription) {
-  customerDescription.addEventListener("blur", () => {
-    saveDescription(currentProject);
-  });
-  }
-
-  function updateFileManager(projectId) {
-    window.currentProjectId = projectId;
-
-    window.dispatchEvent(
-      new CustomEvent("projectChanged", {
-        detail: { projectId }
-      })
-    );
-  }
-
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("is-active"));
-      tab.classList.add("is-active");
-
-      currentProject = tab.dataset.project;
-      const project = projects[currentProject];
-
-      if (!project) return;
-
-      renderProject(project);
-      loadDescription(currentProject);
-      updateFileManager(project.id);
+    projectDescription.addEventListener("blur", () => {
+      saveDescription(currentProjectId);
     });
+  }
+
+  if (customerDescription) {
+    customerDescription.addEventListener("blur", () => {
+      saveDescription(currentProjectId);
+    });
+  }
+
+  // Lytt på prosjektbytte fra project.js
+  window.addEventListener("projectChanged", (event) => {
+    currentProjectId = event.detail.projectId;
+    loadDescription(currentProjectId);
   });
 
   // Vis owner-knapper kun for owner
-const createEmployeeBtn = document.getElementById("createEmployeeBtn");
-
-if (userRole === "owner") {
-  if (createCustomerBtn) createCustomerBtn.classList.remove("hidden");
-  if (createProjectBtn) createProjectBtn.classList.remove("hidden");
-  if (createEmployeeBtn) createEmployeeBtn.classList.remove("hidden");
-}
-
-  // Init første prosjekt
-  renderProject(projects[currentProject]);
-  loadDescription(currentProject);
-  updateFileManager(projects[currentProject].id);
+  if (userRole === "owner") {
+    if (createCustomerBtn) createCustomerBtn.classList.remove("hidden");
+    if (createProjectBtn) createProjectBtn.classList.remove("hidden");
+    if (createEmployeeBtn) createEmployeeBtn.classList.remove("hidden");
+  }
 
   /* Logg ut */
   if (logoutBtn) {

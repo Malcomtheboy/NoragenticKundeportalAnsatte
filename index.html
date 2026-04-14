@@ -11,11 +11,8 @@
 
   <header class="topbar">
     <div class="logo">N</div>
-    <nav class="project-tabs">
-      <button class="tab is-active" data-project="p1">Prosjekt 1</button>
-      <button class="tab" data-project="p2">Prosjekt 2</button>
-      <button class="tab" data-project="p3">Prosjekt 3</button>
-      <button class="tab">Flere</button>
+    <nav class="project-tabs" id="projectTabs">
+     <span class="tabs-loading">Laster prosjekter...</span>
     </nav>
 <div class="topbar-actions">
   <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
@@ -289,5 +286,6 @@
   <script type="module" src="create-employee.js"></script>
   <script type="module" src="analytics.js"></script>
   <script type="module" src="team-overview.js"></script>
+  <script type="module" src="project.js"></script>
 </body>
 </html>
