@@ -304,17 +304,18 @@ body{
   font-size:12px;
 }
 
-/*___________________Filer__________________*/
+/* ===== FILE MANAGER ===== */
+
 .file-manager-shell{
   min-height:240px;
-  border:1px solid var(--stroke);
-  border-radius:var(--radius);
-  background:var(--card);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;
+  background:rgba(255,255,255,0.05); /* 🔥 samme som team */
   padding:12px;
   color:var(--text);
-  backdrop-filter:blur(10px);
 }
 
+/* Topbar */
 .file-manager-topbar{
   display:flex;
   align-items:center;
@@ -329,56 +330,31 @@ body{
   flex-wrap:wrap;
   gap:6px;
   padding:10px 12px;
-  margin-bottom:0;
-  min-height:42px;
   border-radius:10px;
-  background:rgba(255,255,255,0.06);
-  border:1px solid var(--stroke);
-  color:var(--text);
+  background:rgba(255,255,255,0.05); /* 🔥 samme */
+  border:1px solid rgba(255,255,255,0.08);
   font-size:13px;
 }
 
 .breadcrumb-link{
   background:none;
   border:none;
-  padding:0;
-  margin:0;
-  color:rgba(255,255,255,0.85);
-  font:inherit;
+  color:#93c5fd;
   font-weight:600;
   cursor:pointer;
+}
+
+.breadcrumb-link:hover{
+  text-decoration:underline;
 }
 
 .breadcrumb-current{
   font-weight:700;
-  color:#fff;
+  color:var(--text);
 }
 
 .breadcrumb-separator{
-  color:rgba(255,255,255,0.45);
-}
-
-.upload-btn{
-  width:auto;
-  flex:0 0 auto;
-  padding:10px 14px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.18);
-  background:rgba(255,255,255,0.10);
-  color:rgba(255,255,255,0.92);
-  font-size:13px;
-  font-weight:600;
-  cursor:pointer;
-  white-space:nowrap;
-}
-
-.upload-btn:hover{
-  filter:brightness(1.08);
-}
-
-.upload-btn:disabled{
-  opacity:0.6;
-  cursor:not-allowed;
+  color:rgba(255,255,255,0.5);
 }
 
 .loading-state,
@@ -387,22 +363,22 @@ body{
   padding:14px;
   border-radius:10px;
   font-size:14px;
+  background:rgba(255,255,255,0.05); /* 🔥 unify */
+  border:1px solid rgba(255,255,255,0.08);
 }
 
 .loading-state{
-  background:rgba(59,130,246,0.15);
   color:#93c5fd;
 }
 
 .empty-state{
-  background:rgba(255,255,255,0.05);
   color:var(--muted);
 }
 
 .error-state{
-  background:rgba(239,68,68,0.15);
   color:#fca5a5;
 }
+
 
 .table-wrap{
   overflow-x:auto;
@@ -410,30 +386,49 @@ body{
 
 .files-table{
   width:100%;
-  border-collapse:collapse;
+  border-collapse:separate; /* 🔥 viktig for spacing */
+  border-spacing:0 6px;     /* 🔥 gir "cards" */
   font-size:13px;
 }
 
+/* Fjern gammel header style */
 .files-table thead{
-  background:rgba(255,255,255,0.06);
-}
-
-.files-table th,
-.files-table td{
-  text-align:left;
-  padding:10px 12px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
-  color:var(--text);
-  vertical-align:top;
+  background:transparent;
 }
 
 .files-table th{
-  font-weight:700;
-  color:rgba(255,255,255,0.78);
+  padding:8px 12px;
+  font-weight:600;
+  color:rgba(255,255,255,0.7);
+  text-align:left;
 }
 
-.files-table tr:hover{
-  background:rgba(255,255,255,0.05);
+.files-table tbody tr{
+  background:rgba(255,255,255,0.05); /* 🔥 EXACT samme som team */
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:12px;
+}
+
+.files-table td{
+  padding:10px 12px;
+  border:none;
+  color:var(--text);
+}
+
+/* Rundede kanter per rad */
+.files-table tbody tr td:first-child{
+  border-top-left-radius:12px;
+  border-bottom-left-radius:12px;
+}
+
+.files-table tbody tr td:last-child{
+  border-top-right-radius:12px;
+  border-bottom-right-radius:12px;
+}
+
+/* Hover */
+.files-table tbody tr:hover{
+  background:rgba(255,255,255,0.08);
 }
 
 .link-button{
@@ -441,7 +436,6 @@ body{
   border:none;
   padding:0;
   color:#93c5fd;
-  font:inherit;
   font-weight:600;
   cursor:pointer;
 }
@@ -452,11 +446,10 @@ body{
   font-weight:600;
 }
 
-.link-button:hover,
-.file-link:hover,
-.breadcrumb-link:hover{
+.file-link:hover{
   text-decoration:underline;
 }
+
 
 .visibility-cell{
   display:flex;
@@ -470,31 +463,26 @@ body{
   cursor:pointer;
 }
 
-.file-actions{
-  display:flex;
-  gap:8px;
+.upload-btn{
+  padding:10px 14px;
+  border-radius:999px;
+  border:none;
+  background:#2563eb;
+  color:#fff;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
 }
 
 .upload-btn.secondary{
-  background:rgba(255,255,255,0.06);
+  background:rgba(255,255,255,0.10);
   color:var(--text);
-  border:1px solid rgba(255,255,255,0.14);
 }
 
 .upload-btn.secondary:hover{
-  background:rgba(255,255,255,0.10);
+  background:rgba(255,255,255,0.18);
 }
 
-@media (max-width: 700px){
-  .file-manager-topbar{
-    flex-direction:column;
-    align-items:stretch;
-  }
-
-  .upload-btn{
-    width:100%;
-  }
-}
 
 .delete-file-btn{
   padding:6px 10px;
