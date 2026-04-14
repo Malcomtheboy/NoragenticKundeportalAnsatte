@@ -92,15 +92,13 @@ if (isDashboardPage) {
   });
 
   // Vis owner-knapper kun for owner
-  if (userRole === "owner") {
-    if (createCustomerBtn) {
-      createCustomerBtn.classList.remove("hidden");
-    }
+const createEmployeeBtn = document.getElementById("createEmployeeBtn");
 
-    if (createProjectBtn) {
-      createProjectBtn.classList.remove("hidden");
-    }
-  }
+if (userRole === "owner") {
+  if (createCustomerBtn) createCustomerBtn.classList.remove("hidden");
+  if (createProjectBtn) createProjectBtn.classList.remove("hidden");
+  if (createEmployeeBtn) createEmployeeBtn.classList.remove("hidden");
+}
 
   // Init første prosjekt
   renderProject(projects[currentProject]);

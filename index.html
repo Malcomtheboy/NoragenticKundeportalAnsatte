@@ -20,6 +20,7 @@
 <div class="topbar-actions">
   <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
   <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
+  <button class="btn small hidden" id="createEmployeeBtn">+ Ansatt</button>
   <button class="btn small" id="logoutBtn">Logg ut</button>
 </div>
   </header>
@@ -228,9 +229,7 @@
 
       <label class="field">
         <div class="field-label">Prosjekt-ID</div>
-        <input id="customerProjectIdInput" type="text" placeholder="F.eks. PROJECT_ABC_123" />
-      </label>
-
+        <select id="customerProjectSelect"></select>      </label>
       <p class="small-note">
         Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.
       </p>
@@ -243,12 +242,52 @@
   </div>
 </div>
 
+<div class="modal-center is-hidden" id="createEmployeeModal">
+  <div class="center-card">
+    <div class="center-head">
+      <div class="center-title">Opprett ansatt</div>
+      <button class="x" id="closeEmployeeModalX">✕</button>
+    </div>
+
+    <div class="center-body">
+      <label class="field">
+        <div class="field-label">Navn</div>
+        <input id="employeeNameInput" type="text" placeholder="F.eks. Ola Nordmann" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">E-post</div>
+        <input id="employeeEmailInput" type="email" placeholder="ansatt@firma.no" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Passord</div>
+        <input id="employeePasswordInput" type="text" placeholder="Midlertidig passord" />
+      </label>
+
+      <label class="field">
+        <div class="field-label">Velg prosjekt</div>
+        <select id="employeeProjectSelect"></select>
+      </label>
+
+      <p class="small-note">
+        Ansatten opprettes i Firebase Authentication og lagres med rollen employee.
+      </p>
+    </div>
+
+    <div class="center-foot">
+      <button class="btn" id="cancelEmployeeModal">Avbryt</button>
+      <button class="btn primary" id="saveEmployeeSaveBtn">Opprett ansatt</button>
+    </div>
+  </div>
+</div>
 
   <script type="module" src="chat.js"></script>
   <script type="module" src="script.js"></script>
   <script type="module" src="employee-file-manager.js"></script>
   <script type="module" src="create-project.js"></script>
   <script type="module" src="create-customer.js"></script>
+  <script type="module" src="create-employee.js"></script>
   <script type="module" src="analytics.js"></script>
   <script type="module" src="team-overview.js"></script>
 </body>

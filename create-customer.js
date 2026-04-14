@@ -14,10 +14,11 @@ const saveCustomerBtn = document.getElementById("saveCustomerBtn");
 const customerNameInput = document.getElementById("customerNameInput");
 const customerEmailInput = document.getElementById("customerEmailInput");
 const customerPasswordInput = document.getElementById("customerPasswordInput");
-const customerProjectIdInput = document.getElementById("customerProjectIdInput");
+const customerProjectSelect = document.getElementById("customerProjectSelect");
 
-function openCustomerModal() {
+async function openCustomerModal() {
   createCustomerModal.classList.remove("is-hidden");
+  await loadProjectsIntoDropdown();
 }
 
 function closeCustomerModalFn() {
@@ -56,7 +57,7 @@ if (saveCustomerBtn) {
     const name = customerNameInput.value.trim();
     const email = customerEmailInput.value.trim();
     const password = customerPasswordInput.value.trim();
-    const projectId = customerProjectIdInput.value.trim();
+    const projectId = customerProjectSelect.value;
 
     if (!name || !email || !password || !projectId) {
       alert("Fyll ut alle feltene.");
@@ -78,12 +79,14 @@ if (saveCustomerBtn) {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCred.user;
 
-      await setDoc(doc(db, "users", newUser.uid), {
-        name,
-        email,
-        role: "customer",
-        projectIds: [projectId]
-      });
+    // Koble kunden til prosjektet også
+    await setDoc(
+    doc(db, "projects", projectId),
+    {
+        customerIds: [newUser.uid]
+    },
+    { merge: true }
+    );
 
       await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
 
@@ -98,5 +101,30 @@ if (saveCustomerBtn) {
       saveCustomerBtn.disabled = false;
       saveCustomerBtn.textContent = "Opprett kunde";
     }
+  });
+}
+
+import {
+  collection,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+async function loadProjectsIntoDropdown() {
+  const select = document.getElementById("customerProjectSelect");
+
+  if (!select) return;
+
+  select.innerHTML = `<option value="">Velg prosjekt</option>`;
+
+  const snapshot = await getDocs(collection(db, "projects"));
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+
+    const option = document.createElement("option");
+    option.value = docSnap.id;
+    option.textContent = data.name || "Uten navn";
+
+    select.appendChild(option);
   });
 }
