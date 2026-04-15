@@ -152,16 +152,43 @@
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
           <p class="section-description">Her er gruppechat mellom kunde og ansatte på prosjektet.</p>
-          <div class="chat-box">
-            <div id="chatMessages" class="chat-messages"></div>
-            <form id="chatForm" class="chat-input">
-              <input id="chatInput" type="text" placeholder="Skriv melding..." />
-              <button type="submit" class="btn">Send</button>
-            </form>
-            <button id="testBtn" class="btn small">Test DB</button>
+         <!-- 💬 MINI CHAT -->
+         <div class="chat-container">
+            
+          <div class="chat-top">
+            <span>Gruppechat</span>
+            <button id="expandChat">⤢</button>
           </div>
-        </section>
-
+      
+          <div id="chatMessages" class="chat-messages"></div>
+      
+          <form id="chatForm" class="chat-input">
+            <input id="chatInput" type="text" placeholder="Skriv melding..." />
+            <button type="submit">Send</button>
+          </form>
+      
+        </div>
+      </section>
+      
+      <!-- FULLSCREEN POPUP (ENKELT + RIKTIG) -->
+      <div id="chatModal" class="chat-modal">
+      
+        <div class="chat-modal-content">
+      
+          <div class="chat-header">
+            <span>Gruppechat</span>
+            <button id="closeChat">✕</button>
+          </div>
+      
+          <div id="chatMessagesBig" class="chat-messages"></div>
+      
+          <form id="chatFormBig" class="chat-input">
+            <input id="chatInputBig" type="text" placeholder="Skriv melding..." />
+            <button type="submit">Send</button>
+          </form>
+      
+        </div>
+      
       </div>
     </section>
   </main>
