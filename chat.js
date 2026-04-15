@@ -302,7 +302,7 @@ async function sendMessage(sourceInput) {
 
 function updateTypingState() {
   if (!typingSelfRef || !currentUser || !currentProjectData) return;
-  if (!hasProjectAccess(currentProjectData)) return;
+
 
   set(typingSelfRef, {
     user: currentUser.name,
@@ -327,7 +327,7 @@ function bindTypingInput(element) {
 
 function setupTyping() {
   if (!currentUser || !currentProject || !currentProjectData) return;
-  if (!hasProjectAccess(currentProjectData)) return;
+
 
   if (typingUsersRef) {
     off(typingUsersRef);
