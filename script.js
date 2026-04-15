@@ -1,8 +1,14 @@
-import { auth } from "./firebase-auth.js";
+import { auth, db } from "./firebase-auth.js";
 import {
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  doc,
+  getDoc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 
 /* =========================================================
    SIDE-DETEKSJON
@@ -43,37 +49,42 @@ if (isDashboardPage) {
 
   let currentProjectId = null;
 
-  function loadDescription(projectId) {
-    if (!projectId) return;
+ async function loadDescription(projectId) {
+  if (!projectId) return;
+
+  try {
+    const projectSnap = await getDoc(doc(db, "projects", projectId));
+    if (!projectSnap.exists()) return;
+
+    const data = projectSnap.data();
 
     if (projectDescription) {
-      projectDescription.textContent =
-        localStorage.getItem(`employee_projectDescription_${projectId}`) || "";
+     projectDescription.textContent = data.prosjektBeskrivelse || "";
     }
 
     if (customerDescription) {
-      customerDescription.textContent =
-        localStorage.getItem(`employee_customerDescription_${projectId}`) || "";
+      customerDescription.textContent = data.kundeBeskrivelse || "";
     }
+  } catch (error) {
+    console.error("Kunne ikke laste beskrivelser:", error);
   }
+}
 
-  function saveDescription(projectId) {
-    if (!projectId) return;
 
-    if (projectDescription) {
-      localStorage.setItem(
-        `employee_projectDescription_${projectId}`,
-        projectDescription.textContent.trim()
-      );
-    }
+ async function saveDescription(projectId) {
+  if (!projectId) return;
 
-    if (customerDescription) {
-      localStorage.setItem(
-        `employee_customerDescription_${projectId}`,
-        customerDescription.textContent.trim()
-      );
-    }
+  try {
+    
+    await updateDoc(doc(db, "projects", projectId), {
+     prosjektBeskrivelse: projectDescription ? projectDescription.textContent.trim() : "",
+     kundeBeskrivelse: customerDescription ? customerDescription.textContent.trim() : ""
+    });
+  } catch (error) {
+    console.error("Kunne ikke lagre beskrivelser:", error);
   }
+}
+
 
   if (projectDescription) {
     projectDescription.addEventListener("blur", () => {
