@@ -4,19 +4,10 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit,
   onSnapshot,
-  doc,
-  setDoc,
-  serverTimestamp,
-  Timestamp
+  doc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* =========================================================
-   FIREBASE CONFIG
-========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
   authDomain: "noragenticportal.firebaseapp.com",
@@ -29,7 +20,6 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const rtdb = getDatabase(app);
 
 /* =========================================================
    HELPERS
@@ -40,17 +30,6 @@ function clamp(num, min, max) {
   return Math.min(max, Math.max(min, num));
 }
 
-function getProjectDayLabel(dayNumber) {
-  return `Dag ${dayNumber}`;
-}
-
-function getHistoryKeyFromDate(dateObj) {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const d = String(dateObj.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 function getWeekStart() {
   const d = new Date();
   d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
@@ -58,6 +37,13 @@ function getWeekStart() {
   return d;
 }
 
+// Mohamed – gjør om JS sin weekday til index 0=man ... 6=søn
+function getWeekDayIndexFromDate(date) {
+  const day = date.getDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+// Mohamed – hvilken dag i uka er i dag
 function getTodayWeekIndex() {
   const day = new Date().getDay();
   return day === 0 ? 6 : day - 1;
@@ -77,29 +63,6 @@ function daysSince(dateLike) {
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
 }
 
-function buildWeeklyProgressPoints(progressPct) {
-  const todayIdx = getTodayWeekIndex();
-  const points = [];
-
-  for (let i = 0; i <= todayIdx; i++) {
-    let pct;
-
-    if (todayIdx === 0) {
-      pct = progressPct;
-    } else {
-      const ratio = i / todayIdx;
-      pct = Math.round(progressPct * ratio);
-    }
-
-    points.push({
-      label: WEEK_DAY_LABELS[i],
-      pct
-    });
-  }
-
-  return points;
-}
-
 /* =========================================================
    STATE
 ========================================================= */
@@ -116,7 +79,8 @@ let _state = {
   filesThisWeek: 0,
   messagesCount: 0,
 
-  progressHistory: [],
+  // Mohamed – ny: antall filer per dag denne uka
+  weeklyFileCounts: [0, 0, 0, 0, 0, 0, 0],
 
   milestoneTitle: "Ikke satt",
   milestoneDate: null,
@@ -163,6 +127,7 @@ function recomputeDerivedState() {
 
   const alerts = [];
 
+  // Mohamed – varsler/risiko har nå faktisk logikk
   if (messagesThisWeek === 0) {
     alerts.push("Ingen nye meldinger denne uken – risiko for svak kommunikasjon.");
   }
@@ -236,8 +201,7 @@ function startLiveAnalytics(projectId) {
     totalFiles: 0,
     filesThisWeek: 0,
     messagesCount: 0,
-
-    progressHistory: [],
+    weeklyFileCounts: [0, 0, 0, 0, 0, 0, 0],
 
     milestoneTitle: "Ikke satt",
     milestoneDate: null,
@@ -303,21 +267,12 @@ function startLiveAnalytics(projectId) {
         _state.milestoneTitle = d.milestoneTitle || d.milestone || "Ikke satt";
         _state.milestoneDate = d.milestoneDate || d.eta || null;
         _state.milestoneStatus = d.milestoneStatus || "Pågår";
-      } else {
-        setDoc(doc(db, "projects", projectId), {
-          manualProgress: 0,
-          weekNote: "Ingen ukesnotat lagt inn ennå.",
-          goalText: "Her kan prosjektets aktive delmål vises",
-          startedAt: serverTimestamp(),
-          durationDays: 90,
-          milestoneTitle: "Prototype ferdig",
-          milestoneStatus: "Pågår",
-          createdAt: serverTimestamp()
-        }).catch((e) => console.warn("Kunne ikke opprette prosjekt:", e));
-      }
 
-      const goalEl = document.getElementById("projectGoal");
-      if (goalEl) goalEl.textContent = _state.goalText;
+        _state.latestProgressAt =
+          d.updatedAt?.toDate?.() ||
+          d.createdAt?.toDate?.() ||
+          null;
+      }
 
       recomputeDerivedState();
       renderWidget();
@@ -330,48 +285,7 @@ function startLiveAnalytics(projectId) {
   ));
 
   /* -------------------------
-     2) PROGRESS HISTORY
-  ------------------------- */
-  _unsubs.push(onSnapshot(
-    query(
-      collection(db, "projects", projectId, "progressHistory"),
-      orderBy("savedAt", "asc"),
-      limit(30)
-    ),
-    (snap) => {
-      const history = [];
-      let latestSavedAt = null;
-
-      snap.forEach((d) => {
-        const data = d.data();
-        const savedAt = data.savedAt?.toDate ? data.savedAt.toDate() : null;
-
-        history.push({
-          dayLabel: data.dayLabel || data.weekLabel || d.id,
-          pct: typeof data.pct === "number" ? data.pct : 0,
-          savedAt
-        });
-
-        if (savedAt && (!latestSavedAt || savedAt > latestSavedAt)) {
-          latestSavedAt = savedAt;
-        }
-      });
-
-      _state.progressHistory = history;
-      _state.latestProgressAt = latestSavedAt;
-
-      recomputeDerivedState();
-      renderWidget();
-    },
-    () => {
-      _state.progressHistory = [];
-      recomputeDerivedState();
-      renderWidget();
-    }
-  ));
-
-  /* -------------------------
-     3) FILES
+     2) FILES
   ------------------------- */
   _unsubs.push(onSnapshot(
     query(collection(db, "files"), where("projectId", "==", projectId)),
@@ -379,6 +293,9 @@ function startLiveAnalytics(projectId) {
       const weekStart = getWeekStart().getTime();
       let filesThisWeek = 0;
       let latestFileAt = null;
+
+      // Mohamed – ny: teller filer per ukedag
+      const weeklyFileCounts = [0, 0, 0, 0, 0, 0, 0];
 
       snap.forEach((d) => {
         const data = d.data();
@@ -390,7 +307,10 @@ function startLiveAnalytics(projectId) {
         if (fileDate) {
           if (fileDate.getTime() >= weekStart) {
             filesThisWeek++;
+            const dayIndex = getWeekDayIndexFromDate(fileDate);
+            weeklyFileCounts[dayIndex]++;
           }
+
           if (!latestFileAt || fileDate > latestFileAt) {
             latestFileAt = fileDate;
           }
@@ -400,6 +320,7 @@ function startLiveAnalytics(projectId) {
       _state.totalFiles = snap.size;
       _state.filesThisWeek = filesThisWeek;
       _state.latestFileAt = latestFileAt;
+      _state.weeklyFileCounts = weeklyFileCounts;
 
       recomputeDerivedState();
       renderWidget();
@@ -410,53 +331,57 @@ function startLiveAnalytics(projectId) {
   ));
 
   /* -------------------------
-     4) MESSAGES (Realtime DB)
+     3) MESSAGES
   ------------------------- */
-  const chatKeyMap = {
-    "PROJECT_ABC_123": "p1",
-    "PROJECT_DEF_456": "p2",
-    "PROJECT_GHI_789": "p3"
-  };
+  _unsubs.push(onSnapshot(
+    query(collection(db, "messages"), where("projectId", "==", projectId)),
+    (snap) => {
+      const weekStart = getWeekStart().getTime();
+      let count = 0;
+      let latestMessageAt = null;
 
-  const chatKey = chatKeyMap[projectId] || projectId;
-  const chatDbRef = ref(rtdb, "chats/" + chatKey);
+      snap.forEach((d) => {
+        const data = d.data();
+        const msgDate = data.createdAt?.toDate?.() || null;
 
-  const stopChat = onValue(chatDbRef, (snapshot) => {
-    const weekStart = getWeekStart().getTime();
-    let count = 0;
-    let latestMessageAt = null;
+        if (msgDate) {
+          if (msgDate.getTime() >= weekStart) {
+            count++;
+          }
 
-    if (snapshot.exists()) {
-      snapshot.forEach((child) => {
-        const msg = child.val();
-        if (msg.time) {
-          if (msg.time >= weekStart) count++;
-          const msgDate = new Date(msg.time);
           if (!latestMessageAt || msgDate > latestMessageAt) {
             latestMessageAt = msgDate;
           }
         }
       });
+
+      _state.messagesCount = count;
+      _state.latestMessageAt = latestMessageAt;
+
+      recomputeDerivedState();
+      renderWidget();
+    },
+    (err) => {
+      console.warn("Messages listener:", err.code);
     }
-
-    _state.messagesCount = count;
-    _state.latestMessageAt = latestMessageAt;
-
-    recomputeDerivedState();
-    renderWidget();
-  });
-
-  _unsubs.push(() => {
-    if (typeof stopChat === "function") stopChat();
-  });
+  ));
 }
 
 /* =========================================================
    CHART
 ========================================================= */
+// Mohamed – grafen viser nå filaktivitet denne uka, ikke bare progressPct
 function buildProgressChart() {
   const todayIdx = getTodayWeekIndex();
-  const activePoints = buildWeeklyProgressPoints(_state.progressPct || 0);
+  const counts = Array.isArray(_state.weeklyFileCounts)
+    ? _state.weeklyFileCounts
+    : [0, 0, 0, 0, 0, 0, 0];
+
+  const visibleCounts = counts.map((value, index) => {
+    return index <= todayIdx ? value : null;
+  });
+
+  const maxCount = Math.max(1, ...counts);
 
   const W = 300;
   const H = 130;
@@ -465,47 +390,50 @@ function buildProgressChart() {
   const iH = H - PAD.top - PAD.bottom;
 
   const xPos = (i) => PAD.left + (i / 6) * iW;
-  const yPos = (v) => PAD.top + iH - (clamp(v, 0, 100) / 100) * iH;
+  const yPos = (v) => PAD.top + iH - (v / maxCount) * iH;
 
-  const yTicks = [0, 25, 50, 75, 100];
+  const yTicks = [0, Math.ceil(maxCount / 2), maxCount];
   const grid = yTicks.map(v => `
     <line x1="${PAD.left}" y1="${yPos(v).toFixed(1)}"
           x2="${PAD.left + iW}" y2="${yPos(v).toFixed(1)}"
           stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
     <text x="${PAD.left - 6}" y="${(yPos(v) + 4).toFixed(1)}"
           text-anchor="end" font-size="8"
-          fill="rgba(255,255,255,0.40)">${v}%</text>
+          fill="rgba(255,255,255,0.40)">${v}</text>
   `).join("");
 
-  const coords = activePoints.map((p, i) => ({
-    x: xPos(i),
-    y: yPos(p.pct),
-    label: p.label,
-    pct: p.pct
-  }));
+  const activePoints = [];
+  for (let i = 0; i <= todayIdx; i++) {
+    activePoints.push({
+      x: xPos(i),
+      y: yPos(visibleCounts[i] || 0),
+      value: visibleCounts[i] || 0,
+      label: WEEK_DAY_LABELS[i]
+    });
+  }
 
-  const linePath = coords.length > 1
-    ? `M ${coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" L ")}`
-    : `M ${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
+  const linePath = activePoints.length > 1
+    ? `M ${activePoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")}`
+    : `M ${activePoints[0].x.toFixed(1)},${activePoints[0].y.toFixed(1)}`;
 
-  const areaPath = coords.length > 1
-    ? `M ${coords[0].x.toFixed(1)},${(PAD.top + iH).toFixed(1)}
-       L ${coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" L ")}
-       L ${coords[coords.length - 1].x.toFixed(1)},${(PAD.top + iH).toFixed(1)} Z`
+  const areaPath = activePoints.length > 1
+    ? `M ${activePoints[0].x.toFixed(1)},${(PAD.top + iH).toFixed(1)}
+       L ${activePoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")}
+       L ${activePoints[activePoints.length - 1].x.toFixed(1)},${(PAD.top + iH).toFixed(1)} Z`
     : "";
 
   const futureLine = todayIdx < 6
-    ? `<line x1="${xPos(todayIdx).toFixed(1)}" y1="${yPos(_state.progressPct).toFixed(1)}"
-             x2="${xPos(6).toFixed(1)}" y2="${yPos(_state.progressPct).toFixed(1)}"
+    ? `<line x1="${xPos(todayIdx).toFixed(1)}" y1="${yPos(visibleCounts[todayIdx] || 0).toFixed(1)}"
+             x2="${xPos(6).toFixed(1)}" y2="${yPos(visibleCounts[todayIdx] || 0).toFixed(1)}"
              stroke="rgba(147,197,253,0.24)" stroke-width="1.5" stroke-dasharray="4,4"/>`
     : "";
 
-  const dots = coords.map((c, i) => `
-    <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}"
-            r="${i === coords.length - 1 ? 5 : 3.5}"
-            fill="${i === coords.length - 1 ? '#60a5fa' : '#93c5fd'}"
+  const dots = activePoints.map((p, i) => `
+    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}"
+            r="${i === activePoints.length - 1 ? 5 : 3.5}"
+            fill="${i === activePoints.length - 1 ? '#60a5fa' : '#93c5fd'}"
             stroke="rgba(255,255,255,0.92)" stroke-width="1.5">
-      <title>${c.label}: ${c.pct}%</title>
+      <title>${p.label}: ${p.value} filer</title>
     </circle>
   `).join("");
 
@@ -520,14 +448,14 @@ function buildProgressChart() {
     <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
          style="width:100%;height:auto;display:block;overflow:visible">
       <defs>
-        <linearGradient id="progressAreaWeekly" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="filesAreaWeekly" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="rgba(96,165,250,0.40)"/>
           <stop offset="100%" stop-color="rgba(96,165,250,0.00)"/>
         </linearGradient>
       </defs>
 
       ${grid}
-      ${areaPath ? `<path d="${areaPath}" fill="url(#progressAreaWeekly)"/>` : ""}
+      ${areaPath ? `<path d="${areaPath}" fill="url(#filesAreaWeekly)"/>` : ""}
       <path d="${linePath}" fill="none" stroke="#60a5fa" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round"/>
       ${futureLine}
@@ -601,7 +529,7 @@ function renderWidget() {
       </div>
 
       <div class="analytics-summary-card">
-        <div class="analytics-summary-title">Prosjektopsummering</div>
+        <div class="analytics-summary-title">Prosjektoppsummering</div>
         <p class="analytics-summary-text">${summaryText}</p>
       </div>
 
@@ -641,9 +569,9 @@ function renderWidget() {
       </div>
 
       <div class="analytics-chart-wrap">
-        <div class="analytics-chart-title">Prosjektprogresjon denne uken</div>
+        <div class="analytics-chart-title">Filaktivitet denne uken</div>
         <div class="analytics-chart-inner">${buildProgressChart()}</div>
-        <p class="analytics-chart-sub">Viser progresjon gjennom inneværende uke</p>
+        <p class="analytics-chart-sub">Viser filer lastet opp per dag denne uken</p>
       </div>
 
       <div class="analytics-alert-box">
@@ -668,139 +596,6 @@ function renderWidget() {
     heroPctEl.textContent = pct + "%";
   }
 }
-
-/* =========================================================
-   ADMIN MODAL
-========================================================= */
-function openAdminModal() {
-  const existing = document.getElementById("adminModal");
-  if (existing) {
-    existing.remove();
-    return;
-  }
-
-  const modal = document.createElement("div");
-  modal.id = "adminModal";
-  modal.innerHTML = `
-    <div class="admin-backdrop"></div>
-    <div class="admin-panel">
-      <div class="admin-title">⚙️ Rediger prosjekt</div>
-
-      <label class="admin-label">Nåværende delmål</label>
-      <input id="adminGoal" class="admin-input"
-             value="${_state.goalText}" placeholder="F.eks. Implementering av prototype"/>
-
-      <label class="admin-label">Ukesnotat</label>
-      <textarea id="adminNote" class="admin-input admin-textarea"
-                placeholder="Beskriv hva som skjedde denne uken…">${_state.weekDescription === "Ingen ukesnotat lagt inn ennå." ? "" : _state.weekDescription}</textarea>
-
-      <label class="admin-label">Fremdrift % (0–100)</label>
-      <div class="admin-progress-row">
-        <input id="adminPct" type="range" min="0" max="100"
-               value="${_state.progressPct}" class="admin-slider"/>
-        <span id="adminPctVal" class="admin-pct-val">${_state.progressPct}%</span>
-      </div>
-
-      <label class="admin-label">Prosjektstart (dato)</label>
-      <input id="adminStart" type="date" class="admin-input"
-             value="${_state.startedAt ? _state.startedAt.toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}"/>
-
-      <label class="admin-label">Total varighet (dager)</label>
-      <input id="adminDuration" type="number" class="admin-input"
-             value="${_state.durationDays || 90}" placeholder="90" min="1"/>
-
-      <label class="admin-label">Neste milepæl</label>
-      <input id="adminMilestoneTitle" class="admin-input"
-             value="${_state.milestoneTitle || ""}" placeholder="F.eks. Prototype ferdig"/>
-
-      <label class="admin-label">Milepæl dato</label>
-      <input id="adminMilestoneDate" type="date" class="admin-input"
-             value="${_state.milestoneDate ? new Date(_state.milestoneDate?.toDate ? _state.milestoneDate.toDate() : _state.milestoneDate).toISOString().slice(0,10) : ""}"/>
-
-      <label class="admin-label">Milepæl status</label>
-      <input id="adminMilestoneStatus" class="admin-input"
-             value="${_state.milestoneStatus || "Pågår"}" placeholder="Pågår / Ferdig / Forsinket"/>
-
-      <div class="admin-actions">
-        <button id="adminSave" class="admin-btn primary">Lagre til Firebase</button>
-        <button id="adminClose" class="admin-btn">Avbryt</button>
-      </div>
-      <p id="adminStatus" class="admin-status"></p>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  // Slider live preview
-  document.getElementById("adminPct").addEventListener("input", (e) => {
-    document.getElementById("adminPctVal").textContent = e.target.value + "%";
-  });
-
-  // Lukk
-  modal.querySelector(".admin-backdrop").addEventListener("click", () => modal.remove());
-  document.getElementById("adminClose").addEventListener("click", () => modal.remove());
-
-  // Lagre
-  document.getElementById("adminSave").addEventListener("click", async () => {
-    const goalText = document.getElementById("adminGoal").value.trim();
-    const weekNote = document.getElementById("adminNote").value.trim();
-    const pct = parseInt(document.getElementById("adminPct").value, 10);
-    const startStr = document.getElementById("adminStart").value;
-    const duration = parseInt(document.getElementById("adminDuration").value, 10);
-    const milestoneTitle = document.getElementById("adminMilestoneTitle").value.trim();
-    const milestoneDate = document.getElementById("adminMilestoneDate").value;
-    const milestoneStatus = document.getElementById("adminMilestoneStatus").value.trim();
-    const statusEl = document.getElementById("adminStatus");
-
-    if (!_currentProjectId) {
-      statusEl.textContent = "Ingen prosjekt valgt.";
-      return;
-    }
-
-    statusEl.textContent = "Lagrer…";
-
-    try {
-      const projectStartDate = startStr ? new Date(startStr) : new Date();
-      const currentDayNumber = Math.max(
-        0,
-        Math.floor((Date.now() - projectStartDate.getTime()) / 86400000)
-      );
-
-      await setDoc(doc(db, "projects", _currentProjectId), {
-        goalText,
-        weekNote: weekNote || "Ingen ukesnotat lagt inn ennå.",
-        manualProgress: pct,
-        startedAt: startStr ? Timestamp.fromDate(projectStartDate) : serverTimestamp(),
-        durationDays: isNaN(duration) ? 90 : duration,
-        milestoneTitle: milestoneTitle || "Ikke satt",
-        milestoneDate: milestoneDate ? Timestamp.fromDate(new Date(milestoneDate)) : null,
-        milestoneStatus: milestoneStatus || "Pågår",
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      await setDoc(
-        doc(db, "projects", _currentProjectId, "progressHistory", getHistoryKeyFromDate(new Date())),
-        {
-          pct,
-          dayLabel: getProjectDayLabel(currentDayNumber),
-          weekNote: weekNote || "",
-          savedAt: serverTimestamp()
-        }
-      );
-
-      statusEl.style.color = "#86efac";
-      statusEl.textContent = "✓ Lagret!";
-      setTimeout(() => modal.remove(), 900);
-    } catch (err) {
-      statusEl.style.color = "#f87171";
-      statusEl.textContent = "Feil: " + err.message;
-      console.error(err);
-    }
-  });
-}
-
-// Eksponér slik at index.html kan koble knapp
-window.openAdminModal = openAdminModal;
 
 /* =========================================================
    INIT
