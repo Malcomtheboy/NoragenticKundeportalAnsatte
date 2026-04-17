@@ -5,7 +5,10 @@ import {
   query,
   where,
   onSnapshot,
-  doc
+  doc,
+  setDoc,
+  serverTimestamp,
+  Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -596,6 +599,102 @@ function renderWidget() {
     heroPctEl.textContent = pct + "%";
   }
 }
+
+/* =========================================================
+   ADMIN MODAL – Mohamed: lagt til igjen for ✏️-knappen
+========================================================= */
+function openAdminModal() {
+  const existing = document.getElementById("adminModal");
+  if (existing) { existing.remove(); return; }
+
+  const modal = document.createElement("div");
+  modal.id = "adminModal";
+  modal.innerHTML = `
+    <div class="admin-backdrop"></div>
+    <div class="admin-panel">
+      <div class="admin-title">⚙️ Rediger prosjekt</div>
+
+      <label class="admin-label">Nåværende delmål</label>
+      <input id="adminGoal" class="admin-input"
+             value="${_state.goalText}"
+             placeholder="F.eks. Implementering av prototype"/>
+
+      <label class="admin-label">Ukesnotat</label>
+      <textarea id="adminNote" class="admin-input admin-textarea"
+                placeholder="Beskriv hva som skjedde denne uken…">${_state.weekDescription === "Ingen ukesnotat lagt inn ennå." ? "" : _state.weekDescription}</textarea>
+
+      <label class="admin-label">Fremdrift % (0–100)</label>
+      <div class="admin-progress-row">
+        <input id="adminPct" type="range" min="0" max="100"
+               value="${_state.progressPct}" class="admin-slider"/>
+        <span id="adminPctVal" class="admin-pct-val">${_state.progressPct}%</span>
+      </div>
+
+      <label class="admin-label">Neste milepæl</label>
+      <input id="adminMilestone" class="admin-input"
+             value="${_state.milestoneTitle === "Ikke satt" ? "" : _state.milestoneTitle}"
+             placeholder="F.eks. Prototype ferdigstilt"/>
+
+      <label class="admin-label">Prosjektstart</label>
+      <input id="adminStart" type="date" class="admin-input"
+             value="${_state.startedAt ? _state.startedAt.toISOString().slice(0,10) : new Date().toISOString().slice(0,10)}"/>
+
+      <label class="admin-label">Total varighet (dager)</label>
+      <input id="adminDuration" type="number" class="admin-input"
+             value="${_state.durationDays || 90}" min="1"/>
+
+      <div class="admin-actions">
+        <button id="adminSave" class="admin-btn primary">Lagre til Firebase</button>
+        <button id="adminClose" class="admin-btn">Avbryt</button>
+      </div>
+      <p id="adminStatus" class="admin-status"></p>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  document.getElementById("adminPct").addEventListener("input", (e) => {
+    document.getElementById("adminPctVal").textContent = e.target.value + "%";
+  });
+
+  modal.querySelector(".admin-backdrop").addEventListener("click", () => modal.remove());
+  document.getElementById("adminClose").addEventListener("click", () => modal.remove());
+
+  document.getElementById("adminSave").addEventListener("click", async () => {
+    const goalText   = document.getElementById("adminGoal").value.trim();
+    const weekNote   = document.getElementById("adminNote").value.trim();
+    const pct        = parseInt(document.getElementById("adminPct").value, 10);
+    const milestone  = document.getElementById("adminMilestone").value.trim();
+    const startStr   = document.getElementById("adminStart").value;
+    const duration   = parseInt(document.getElementById("adminDuration").value, 10);
+    const statusEl   = document.getElementById("adminStatus");
+
+    if (!_currentProjectId) { statusEl.textContent = "Ingen prosjekt valgt."; return; }
+
+    statusEl.textContent = "Lagrer…";
+    try {
+      await setDoc(doc(db, "projects", _currentProjectId), {
+        goalText,
+        weekNote:       weekNote || "Ingen ukesnotat lagt inn ennå.",
+        manualProgress: pct,
+        startedAt:      startStr ? Timestamp.fromDate(new Date(startStr)) : serverTimestamp(),
+        durationDays:   isNaN(duration) ? 90 : duration,
+        milestoneTitle: milestone || "Ikke satt",
+        milestoneStatus: "Pågår",
+        updatedAt:      serverTimestamp()
+      }, { merge: true });
+
+      statusEl.style.color = "#86efac";
+      statusEl.textContent = "✓ Lagret!";
+      setTimeout(() => modal.remove(), 900);
+    } catch (err) {
+      statusEl.style.color = "#f87171";
+      statusEl.textContent = "Feil: " + err.message;
+      console.error(err);
+    }
+  });
+}
+
+window.openAdminModal = openAdminModal;
 
 /* =========================================================
    INIT
