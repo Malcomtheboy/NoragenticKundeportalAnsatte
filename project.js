@@ -7,82 +7,119 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const projectTabs = document.getElementById("projectTabs");
+/* =========================================================
+   ELEMENTER
+========================================================= */
+const projectSelectorContainer = document.getElementById("projectSelectorContainer");
 const projectName = document.getElementById("projectName");
 const projectGoal = document.getElementById("projectGoal");
 
+/* =========================================================
+   AUTH → HENT PROSJEKTER
+========================================================= */
 onAuthStateChanged(auth, async (user) => {
-  if (!user || !projectTabs) return;
+  if (!user) return;
 
-  const userSnap = await getDoc(doc(db, "users", user.uid));
-  if (!userSnap.exists()) {
-    console.error("Fant ikke brukerdata.");
-    return;
-  }
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
 
-  const userData = userSnap.data();
-  const role = userData.role || "";
-  const projectIds = userData.projectIds || [];
+    if (!userSnap.exists()) {
+      console.error("Fant ikke brukerdata.");
+      renderEmptyState();
+      return;
+    }
 
-  let projects = [];
+    const userData = userSnap.data();
+    console.log("LOGGET INN UID:", user.uid);
+    console.log("USER DATA:", userData);
+    console.log("ROLE:", userData.role);
+    console.log("PROJECT IDS:", userData.projectIds);
+    const role = userData.role || "";
+    const projectIds = userData.projectIds || [];
 
-  if (role === "owner") {
-    const allProjectsSnap = await getDocs(collection(db, "projects"));
-    allProjectsSnap.forEach((docSnap) => {
-      projects.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      });
-    });
-  } else {
-    for (const projectId of projectIds) {
-      const projectSnap = await getDoc(doc(db, "projects", projectId));
-      if (projectSnap.exists()) {
+    let projects = [];
+
+    // OWNER → får alle prosjekter
+    if (role === "owner") {
+      const snapshot = await getDocs(collection(db, "projects"));
+
+      snapshot.forEach((docSnap) => {
         projects.push({
-          id: projectSnap.id,
-          ...projectSnap.data()
+          id: docSnap.id,
+          ...docSnap.data()
         });
+      });
+    }
+
+    // EMPLOYEE → kun egne prosjekter
+    else {
+      for (const id of projectIds) {
+        const snap = await getDoc(doc(db, "projects", id));
+
+        if (snap.exists()) {
+          projects.push({
+            id: snap.id,
+            ...snap.data()
+          });
+        }
       }
     }
-  }
 
-  renderProjects(projects);
+    renderProjectSelector(projects);
+
+    if (projects.length > 0) {
+      setActiveProject(projects[0]);
+    }
+
+  } catch (err) {
+    console.error("Project load error:", err);
+    renderEmptyState();
+  }
 });
 
-function renderProjects(projects) {
-  projectTabs.innerHTML = "";
+/* =========================================================
+   RENDER DROPDOWN
+========================================================= */
+function renderProjectSelector(projects) {
+  if (!projectSelectorContainer) return;
 
   if (!projects.length) {
-    projectTabs.innerHTML = `<span class="tabs-loading">Ingen prosjekter tilgjengelig</span>`;
-    if (projectName) projectName.textContent = "Ingen prosjekter";
-    if (projectGoal) projectGoal.textContent = "Du har ikke tilgang til noen prosjekter.";
+    projectSelectorContainer.innerHTML = `
+      <div class="big">Ingen prosjekter</div>
+    `;
     return;
   }
 
-  projects.forEach((project, index) => {
-    const btn = document.createElement("button");
-    btn.className = "tab";
-    btn.textContent = project.name || "Uten navn";
-    btn.dataset.projectId = project.id;
+  // Kun ett prosjekt → vis navn
+  if (projects.length === 1) {
+    projectSelectorContainer.innerHTML = `
+      <div class="big">${projects[0].name || "Uten navn"}</div>
+    `;
+    return;
+  }
 
-    if (index === 0) {
-      btn.classList.add("is-active");
-      setActiveProject(project);
-    }
+  // Flere prosjekter → dropdown
+  projectSelectorContainer.innerHTML = `
+    <select id="projectSelector" class="project-dropdown">
+      ${projects.map(p => `
+        <option value="${p.id}">
+          ${p.name || "Uten navn"}
+        </option>
+      `).join("")}
+    </select>
+  `;
 
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("#projectTabs .tab").forEach((tab) => {
-        tab.classList.remove("is-active");
-      });
+  const select = document.getElementById("projectSelector");
 
-      btn.classList.add("is-active");
-      setActiveProject(project);
-    });
-
-    projectTabs.appendChild(btn);
+  select.addEventListener("change", () => {
+    const selected = projects.find(p => p.id === select.value);
+    setActiveProject(selected);
   });
 }
 
+/* =========================================================
+   SET ACTIVE PROJECT
+========================================================= */
 function setActiveProject(project) {
   if (!project) return;
 
@@ -96,6 +133,7 @@ function setActiveProject(project) {
 
   window.currentProjectId = project.id;
 
+  // viktig: trigger resten av systemet (team, filer osv)
   window.dispatchEvent(
     new CustomEvent("projectChanged", {
       detail: {
@@ -106,4 +144,23 @@ function setActiveProject(project) {
   );
 
   console.log("Aktivt prosjekt:", project.id, project.name);
+}
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+function renderEmptyState() {
+  if (projectSelectorContainer) {
+    projectSelectorContainer.innerHTML = `
+      <div class="big">Ingen prosjekter</div>
+    `;
+  }
+
+  if (projectName) {
+    projectName.textContent = "Ingen prosjekter";
+  }
+
+  if (projectGoal) {
+    projectGoal.textContent = "Ingen data tilgjengelig";
+  }
 }

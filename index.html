@@ -11,25 +11,23 @@
 
   <header class="topbar">
     <div class="logo">N</div>
-    <nav class="project-tabs" id="projectTabs">
-     <span class="tabs-loading">Laster prosjekter...</span>
-    </nav>
+    <nav class="project-tabs hidden" id="projectTabs"></nav>
+
 <div class="topbar-actions">
   <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
   <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
   <button class="btn small hidden" id="createEmployeeBtn">+ Ansatt</button>
-  <button class="btn small" id="logoutBtn">Logg ut</button>
-</div>
+  <button class="btn small" id="logoutBtn" type="button">Logg ut</button></div>
   </header>
 
   <main class="wrap">
 
     <section class="hero">
 
-      <div class="card small">
-        <div class="label">Valgt prosjekt</div>
-        <div class="big" id="projectName">Prosjekt 1</div>
-      </div>
+    <div class="card small">
+     <div class="label">Valgt prosjekt</div>
+     <div id="projectSelectorContainer"></div>
+    </div>
 
       <div class="card wide">
         <div class="hero-top-row">

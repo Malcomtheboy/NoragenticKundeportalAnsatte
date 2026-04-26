@@ -1,26 +1,15 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { auth, db } from "./firebase-auth.js";
+
 import {
-  getFirestore,
   collection,
   getDocs,
   doc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
-  authDomain: "noragenticportal.firebaseapp.com",
-  projectId: "noragenticportal",
-  storageBucket: "noragenticportal.firebasestorage.app",
-  messagingSenderId: "662374310916",
-  appId: "1:662374310916:web:a3a5d708bdd380a7210151",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
+/* =========================================================
+   ELEMENTER
+========================================================= */
 const teamPlaceholder = document.getElementById("teamPlaceholder");
 const addEmployeeBtn = document.getElementById("addEmployeeBtn");
 const addEmployeeModal = document.getElementById("addEmployeeModal");
@@ -33,6 +22,9 @@ const employeeModalState = document.getElementById("employeeModalState");
 let currentProjectId = null;
 let allEmployees = [];
 
+/* =========================================================
+   HELPERS
+========================================================= */
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
   return String(text)
@@ -73,23 +65,12 @@ function isUserOnProject(user, projectId) {
     return true;
   }
 
-  if (typeof user.projectId === "string" && user.projectId === projectId) {
-    return true;
-  }
-
   return false;
 }
 
-async function ensureFirebaseLogin() {
-  try {
-    if (!auth.currentUser) {
-      await signInWithEmailAndPassword(auth, "test@test.no", "123456");
-    }
-  } catch (e) {
-    console.error("Firebase login feilet:", e);
-  }
-}
-
+/* =========================================================
+   RENDER
+========================================================= */
 function renderLoading() {
   if (!teamPlaceholder) return;
   teamPlaceholder.className = "team-loading";
@@ -105,56 +86,43 @@ function renderError() {
 function renderEmpty() {
   if (!teamPlaceholder) return;
   teamPlaceholder.className = "team-empty";
-  teamPlaceholder.innerHTML = "Ingen ansatte er koblet til dette prosjektet ennå.";
+  teamPlaceholder.innerHTML = "Ingen ansatte på prosjektet.";
 }
 
+/* =========================================================
+   VIS MAX 4 + VIS MER
+========================================================= */
 function renderMembers(members) {
   if (!teamPlaceholder) return;
 
-  const html = `
+  const MAX = 4;
+  const visibleMembers = members.slice(0, MAX);
+  const hiddenMembers = members.slice(MAX);
+
+  let html = `
     <div class="team-list">
-      ${members.map((member) => {
-        const initials = getInitials(member.name);
-
-        return `
-          <div class="team-member">
-            <div class="team-member-main">
-              <div class="team-avatar">${escapeHtml(initials)}</div>
-
-              <div class="team-member-info">
-                <div class="team-member-name">
-                  ${escapeHtml(member.name || "Ukjent navn")}
-                </div>
-                <div class="team-member-meta">
-                  ${escapeHtml(member.email || "Ingen e-post registrert")}
-                </div>
-              </div>
-            </div>
-
-            <div class="team-member-actions">
-              <div class="team-member-role">
-                ${escapeHtml(normalizeRole(member.role))}
-              </div>
-
-              <button
-                class="remove-employee-btn"
-                data-user-id="${member.id}"
-                data-user-name="${escapeHtml(member.name || "Ansatt")}"
-                type="button"
-              >
-                Fjern
-              </button>
-            </div>
-          </div>
-        `;
-      }).join("")}
-    </div>
+      ${visibleMembers.map(member => renderMember(member)).join("")}
   `;
+
+  if (hiddenMembers.length > 0) {
+    html += `
+      <div id="hiddenMembers" style="display:none;">
+        ${hiddenMembers.map(member => renderMember(member)).join("")}
+      </div>
+
+      <button id="showMoreBtn" class="btn small">
+        Vis flere (${hiddenMembers.length})
+      </button>
+    `;
+  }
+
+  html += `</div>`;
 
   teamPlaceholder.className = "";
   teamPlaceholder.innerHTML = html;
 
-  teamPlaceholder.querySelectorAll(".remove-employee-btn").forEach((btn) => {
+  /* REMOVE BUTTONS */
+  teamPlaceholder.querySelectorAll(".remove-employee-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       await removeEmployeeFromProject(
         btn.dataset.userId,
@@ -162,13 +130,61 @@ function renderMembers(members) {
       );
     });
   });
+
+  /* VIS MER */
+  const showMoreBtn = document.getElementById("showMoreBtn");
+  if (showMoreBtn) {
+    showMoreBtn.addEventListener("click", () => {
+      document.getElementById("hiddenMembers").style.display = "block";
+      showMoreBtn.remove();
+    });
+  }
 }
 
+function renderMember(member) {
+  const initials = getInitials(member.name);
+
+  return `
+    <div class="team-member">
+      <div class="team-member-main">
+        <div class="team-avatar">${escapeHtml(initials)}</div>
+
+        <div class="team-member-info">
+          <div class="team-member-name">
+            ${escapeHtml(member.name || "Ukjent")}
+          </div>
+          <div class="team-member-meta">
+            ${escapeHtml(member.email || "")}
+          </div>
+        </div>
+      </div>
+
+      <div class="team-member-actions">
+        <div class="team-member-role">
+          ${escapeHtml(normalizeRole(member.role))}
+        </div>
+
+        <button
+          class="remove-employee-btn"
+          data-user-id="${member.id}"
+          data-user-name="${escapeHtml(member.name || "Ansatt")}"
+          type="button"
+        >
+          Fjern
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   DATA
+========================================================= */
 async function fetchAllEmployees() {
   const snapshot = await getDocs(collection(db, "users"));
   const employees = [];
 
-  snapshot.forEach((docSnap) => {
+  snapshot.forEach(docSnap => {
     const user = docSnap.data();
 
     if (!isAllowedRole(user.role)) return;
@@ -178,8 +194,7 @@ async function fetchAllEmployees() {
       name: user.name || "",
       email: user.email || "",
       role: user.role || "employee",
-      projectIds: Array.isArray(user.projectIds) ? user.projectIds : [],
-      projectId: typeof user.projectId === "string" ? user.projectId : ""
+      projectIds: Array.isArray(user.projectIds) ? user.projectIds : []
     });
   });
 
@@ -197,160 +212,125 @@ async function loadTeamOverview(projectId) {
   renderLoading();
 
   try {
-    await ensureFirebaseLogin();
-
     allEmployees = await fetchAllEmployees();
 
-    const members = allEmployees.filter((user) =>
+    const members = allEmployees.filter(user =>
       isUserOnProject(user, projectId)
     );
 
-    if (members.length === 0) {
+    if (!members.length) {
       renderEmpty();
       return;
     }
 
     renderMembers(members);
+
   } catch (error) {
     console.error("Team overview error:", error);
     renderError();
   }
 }
 
+/* =========================================================
+   MODAL
+========================================================= */
 function openEmployeeModal() {
   if (!addEmployeeModal || !employeeSelect) return;
 
   employeeModalState.textContent = "";
   employeeSelect.innerHTML = `<option value="">Velg ansatt</option>`;
 
-  const availableEmployees = allEmployees.filter(
-    (user) => !isUserOnProject(user, currentProjectId)
+  const available = allEmployees.filter(
+    user => !isUserOnProject(user, currentProjectId)
   );
 
-  availableEmployees.forEach((user) => {
+  available.forEach(user => {
     const option = document.createElement("option");
     option.value = user.id;
-    option.textContent = `${user.name || "Ukjent navn"} (${user.email || "ingen e-post"})`;
+    option.textContent = `${user.name} (${user.email})`;
     employeeSelect.appendChild(option);
   });
 
-  if (availableEmployees.length === 0) {
-    employeeModalState.textContent = "Alle ansatte er allerede lagt til på dette prosjektet.";
+  if (!available.length) {
+    employeeModalState.textContent = "Alle ansatte er allerede lagt til.";
   }
 
   addEmployeeModal.classList.remove("is-hidden");
 }
 
 function closeEmployeeModal() {
-  if (!addEmployeeModal) return;
-  addEmployeeModal.classList.add("is-hidden");
+  addEmployeeModal?.classList.add("is-hidden");
 }
 
+/* =========================================================
+   ADD / REMOVE
+========================================================= */
 async function addEmployeeToProject() {
-  if (!employeeSelect || !currentProjectId) return;
-
   const selectedUserId = employeeSelect.value;
 
   if (!selectedUserId) {
-    employeeModalState.textContent = "Velg en ansatt først.";
+    employeeModalState.textContent = "Velg en ansatt.";
     return;
   }
 
-  const selectedUser = allEmployees.find((user) => user.id === selectedUserId);
-
-  if (!selectedUser) {
-    employeeModalState.textContent = "Fant ikke valgt ansatt.";
-    return;
-  }
+  const user = allEmployees.find(u => u.id === selectedUserId);
+  if (!user) return;
 
   try {
     saveEmployeeBtn.disabled = true;
-    employeeModalState.textContent = "Lagrer...";
 
-    const currentIds = Array.isArray(selectedUser.projectIds)
-      ? [...selectedUser.projectIds]
-      : [];
-
-    if (!currentIds.includes(currentProjectId)) {
-      currentIds.push(currentProjectId);
-    }
+    const updated = [...user.projectIds, currentProjectId];
 
     await updateDoc(doc(db, "users", selectedUserId), {
-      projectIds: currentIds
+      projectIds: updated
     });
 
     closeEmployeeModal();
     await loadTeamOverview(currentProjectId);
-  } catch (error) {
-    console.error("Add employee error:", error);
-    employeeModalState.textContent = "Kunne ikke legge til ansatt.";
+
+  } catch (err) {
+    console.error(err);
+    employeeModalState.textContent = "Feil ved lagring.";
   } finally {
     saveEmployeeBtn.disabled = false;
   }
 }
 
 async function removeEmployeeFromProject(userId, userName) {
-  if (!userId || !currentProjectId) return;
-
-  const confirmed = confirm(`Fjern ${userName || "den ansatte"} fra prosjektet?`);
+  const confirmed = confirm(`Fjern ${userName}?`);
   if (!confirmed) return;
 
-  const selectedUser = allEmployees.find((user) => user.id === userId);
-  if (!selectedUser) return;
+  const user = allEmployees.find(u => u.id === userId);
+  if (!user) return;
 
-  try {
-    const currentIds = Array.isArray(selectedUser.projectIds)
-      ? [...selectedUser.projectIds]
-      : [];
+  const updated = user.projectIds.filter(id => id !== currentProjectId);
 
-    const updatedIds = currentIds.filter((projectId) => projectId !== currentProjectId);
+  await updateDoc(doc(db, "users", userId), {
+    projectIds: updated
+  });
 
-    await updateDoc(doc(db, "users", userId), {
-      projectIds: updatedIds
-    });
-
-    await loadTeamOverview(currentProjectId);
-  } catch (error) {
-    console.error("Remove employee error:", error);
-    alert("Kunne ikke fjerne ansatt fra prosjektet.");
-  }
+  await loadTeamOverview(currentProjectId);
 }
 
+/* =========================================================
+   EVENTS
+========================================================= */
 window.addEventListener("projectChanged", async (event) => {
-  const projectId = event.detail?.projectId;
-  await loadTeamOverview(projectId);
+  await loadTeamOverview(event.detail?.projectId);
 });
 
-if (addEmployeeBtn) {
-  addEmployeeBtn.addEventListener("click", openEmployeeModal);
+addEmployeeBtn?.addEventListener("click", openEmployeeModal);
+closeEmployeeModalBtn?.addEventListener("click", closeEmployeeModal);
+cancelEmployeeModalBtn?.addEventListener("click", closeEmployeeModal);
+saveEmployeeBtn?.addEventListener("click", addEmployeeToProject);
+
+addEmployeeModal?.addEventListener("click", (e) => {
+  if (e.target === addEmployeeModal) closeEmployeeModal();
+});
+
+/* =========================================================
+   INIT
+========================================================= */
+if (window.currentProjectId) {
+  loadTeamOverview(window.currentProjectId);
 }
-
-if (closeEmployeeModalBtn) {
-  closeEmployeeModalBtn.addEventListener("click", closeEmployeeModal);
-}
-
-if (cancelEmployeeModalBtn) {
-  cancelEmployeeModalBtn.addEventListener("click", closeEmployeeModal);
-}
-
-if (saveEmployeeBtn) {
-  saveEmployeeBtn.addEventListener("click", addEmployeeToProject);
-}
-
-if (addEmployeeModal) {
-  addEmployeeModal.addEventListener("click", (event) => {
-    if (event.target === addEmployeeModal) {
-      closeEmployeeModal();
-    }
-  });
-}
-
-async function initTeamOverview() {
-  await ensureFirebaseLogin();
-
-  if (window.currentProjectId) {
-    await loadTeamOverview(window.currentProjectId);
-  }
-}
-
-initTeamOverview();

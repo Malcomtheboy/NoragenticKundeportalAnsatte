@@ -61,11 +61,7 @@ function escapeHtml(text) {
 }
 
 async function ensureFirebaseLogin() {
-  try {
-    await signInWithEmailAndPassword(auth, "test@test.no", "123456");
-  } catch (e) {
-    console.error("Firebase login feilet:", e);
-  }
+  return;
 }
 
 function renderBreadcrumbs() {
