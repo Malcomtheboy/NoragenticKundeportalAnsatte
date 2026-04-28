@@ -67,8 +67,17 @@ onAuthStateChanged(auth, async (user) => {
 
     renderProjectSelector(projects);
 
-    if (projects.length > 0) {
-      setActiveProject(projects[0]);
+    if (projects.length > 0) { //@aslak denne er endret for å sette id til den valgt av landingssiden
+      const selectedProjectId = localStorage.getItem("selected_project_id");
+        const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+
+        setActiveProject(selectedProject);
+
+        const projectSelector = document.getElementById("projectSelector");
+
+        if (projectSelector && selectedProject) {
+          projectSelector.value = selectedProject.id;
+        }
     }
 
   } catch (err) {
