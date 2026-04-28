@@ -83,10 +83,10 @@ if (saveCustomerBtn) {
     await setDoc(
     doc(db, "projects", projectId),
     {
-        customerIds: [newUser.uid]
-    },
-    { merge: true }
-    );
+    customerIds: [newUser.uid]
+  },
+  { merge: true }
+);
 
       await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
 
