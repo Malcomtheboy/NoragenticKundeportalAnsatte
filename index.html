@@ -131,6 +131,43 @@
           </div>
         </div>
 
+                <section class="panel card">
+          <div class="team-card-head">
+            <div>
+              <div class="section-title">Kunder på prosjekt</div>
+              <p class="section-description">
+                Oversikt over hvilke kunder som er tilknyttet prosjektet.
+              </p>
+            </div>
+            <button id="addCustomerToProjectBtn" class="btn small team-add-btn" type="button">
+              + Legg til kunde
+            </button>
+          </div>
+
+          <div id="customerPlaceholder" class="team-loading">Laster kunder...</div>
+
+          <div id="addCustomerModal" class="team-modal is-hidden">
+            <div class="team-modal-card">
+              <div class="team-modal-head">
+                <div class="team-modal-title">Legg til kunde</div>
+                <button id="closeCustomerProjectModalBtn" class="team-modal-close" type="button">✕</button>
+              </div>
+              <div class="team-modal-body">
+                <p class="team-modal-text">Velg en kunde som skal kobles til valgt prosjekt.</p>
+                <select id="customerProjectSelectModal" class="team-select">
+                  <option value="">Velg kunde</option>
+                </select>
+                <div id="customerProjectModalState" class="team-modal-state"></div>
+              </div>
+              <div class="team-modal-footer">
+                <button id="cancelCustomerProjectModalBtn" class="btn" type="button">Avbryt</button>
+                <button id="saveCustomerProjectBtn" class="btn primary" type="button">Legg til</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
         <section class="panel card">
           <div class="section-title">Prosjektbeskrivelse</div>
           <p class="section-description">En beskrivelse av prosjektet, mål og kontekst.</p>

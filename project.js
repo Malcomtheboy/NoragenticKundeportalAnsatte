@@ -4,8 +4,11 @@ import {
   doc,
   getDoc,
   collection,
-  getDocs
+  getDocs,
+  setDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 
 /* =========================================================
    ELEMENTER
@@ -13,6 +16,8 @@ import {
 const projectSelectorContainer = document.getElementById("projectSelectorContainer");
 const projectName = document.getElementById("projectName");
 const projectGoal = document.getElementById("projectGoal");
+const projectDescription = document.getElementById("projectDescription");
+const customerDescription = document.getElementById("customerDescription");
 
 /* =========================================================
    AUTH → HENT PROSJEKTER
@@ -126,6 +131,41 @@ function renderProjectSelector(projects) {
   });
 }
 
+async function loadDescriptions(projectId) {
+  if (!projectId || !projectDescription || !customerDescription) return;
+
+  try {
+    const snap = await getDoc(doc(db, "projects", projectId));
+    const data = snap.exists() ? snap.data() : {};
+
+    projectDescription.textContent =
+      data.prosjektBeskrivelse || data.description || "";
+    customerDescription.textContent =
+      data.kundeBeskrivelse || data.customerDescription || "";
+  } catch (err) {
+    console.error("Kunne ikke laste beskrivelser:", err);
+  }
+}
+
+async function saveDescriptions(projectId) {
+  if (!projectId || !projectDescription || !customerDescription) return;
+
+  try {
+    await setDoc(
+      doc(db, "projects", projectId),
+      {
+        prosjektBeskrivelse: projectDescription.textContent.trim(),
+        kundeBeskrivelse: customerDescription.textContent.trim(),
+        updatedAt: serverTimestamp()
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.error("Kunne ikke lagre beskrivelser:", err);
+  }
+}
+
+
 /* =========================================================
    SET ACTIVE PROJECT
 ========================================================= */
@@ -141,6 +181,8 @@ function setActiveProject(project) {
   }
 
   window.currentProjectId = project.id;
+  loadDescriptions(project.id);
+
 
   // viktig: trigger resten av systemet (team, filer osv)
   window.dispatchEvent(
@@ -173,3 +215,11 @@ function renderEmptyState() {
     projectGoal.textContent = "Ingen data tilgjengelig";
   }
 }
+
+projectDescription?.addEventListener("blur", () => {
+  saveDescriptions(window.currentProjectId);
+});
+
+customerDescription?.addEventListener("blur", () => {
+  saveDescriptions(window.currentProjectId);
+});
