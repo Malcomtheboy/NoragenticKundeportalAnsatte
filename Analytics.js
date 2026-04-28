@@ -487,21 +487,13 @@ function renderWidget() {
   container.innerHTML = `
     <div class="analytics-widget">
 
-      <div class="analytics-header">
-        <span class="analytics-title">Ukesprogresjon</span>
-        <span class="analytics-pct">${pct}%</span>
+      <!-- Mohamed – milepæler øverst, første ting ansatt ser -->
+      <div class="analytics-milestone-box">
+        <div class="analytics-milestone-title" style="margin-bottom:8px">Milepæler (${milestonesDone}/${milestonesTotal})</div>
+        <div class="analytics-milestone-list">${milestonesHtml}</div>
       </div>
 
       <p class="analytics-desc">${weekDescription}</p>
-
-      <!-- Mohamed – denne baren viser hvor langt vi er i uken (ikke milepæler) -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:11px;color:rgba(255,255,255,0.50)">Ukesfremgang (dag ${getTodayWeekIndex()+1} av 7)</span>
-        <span style="font-size:11px;color:rgba(255,255,255,0.70);font-weight:700">${Math.round(((getTodayWeekIndex()+1)/7)*100)}%</span>
-      </div>
-      <div class="analytics-bar-track">
-        <div id="innerBar" style="width:0%;height:6px;background:linear-gradient(90deg,rgba(74,222,128,0.85),rgba(134,239,172,0.95));border-radius:999px;transition:width 1.1s cubic-bezier(0.4,0,0.2,1)"></div>
-      </div>
 
       <div class="analytics-summary-card">
         <div class="analytics-summary-title">Prosjektoppsummering</div>
@@ -542,12 +534,6 @@ function renderWidget() {
         </div>
       </div>
 
-      <!-- Mohamed – interaktiv milepæl-liste -->
-      <div class="analytics-milestone-box">
-        <div class="analytics-milestone-title">Milepæler (${milestonesDone}/${milestonesTotal})</div>
-        <div class="analytics-milestone-list">${milestonesHtml}</div>
-      </div>
-
       <div class="analytics-chart-wrap">
         <div class="analytics-chart-title">Milepæl-fremgang denne uken</div>
         <div class="analytics-chart-inner">${buildProgressChart()}</div>
@@ -565,7 +551,6 @@ function renderWidget() {
 
     </div>`;
 
-  animateBar("innerBar", Math.round(((getTodayWeekIndex()+1)/7)*100));
   animateBar("heroProgressBar", pct);
   const heroPctEl = document.getElementById("heroProgressPct");
   if (heroPctEl) heroPctEl.textContent = pct + "%";
@@ -578,52 +563,6 @@ function renderWidget() {
 function openAdminModal() {
   const existing = document.getElementById("adminModal");
   if (existing) { existing.remove(); return; }
-
-  // Inject CSS én gang
-  if (!document.getElementById("adminModalStyles")) {
-    const s = document.createElement("style");
-    s.id = "adminModalStyles";
-    s.textContent = `
-      #adminModal { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; }
-      .admin-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.60); backdrop-filter:blur(4px); }
-      .admin-panel {
-        position:relative; z-index:1; width:min(520px,94vw);
-        background:rgba(14,18,30,0.97); border:1px solid rgba(255,255,255,0.16);
-        border-radius:20px; padding:24px; box-shadow:0 24px 60px rgba(0,0,0,0.6);
-        display:flex; flex-direction:column; gap:10px;
-        max-height:90vh; overflow-y:auto;
-      }
-      .admin-title { font-size:16px; font-weight:800; color:rgba(255,255,255,0.95); margin-bottom:4px; }
-      .admin-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,0.55); margin-top:4px; }
-      .admin-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.92); font-size:13px; outline:none; font-family:inherit; }
-      .admin-input:focus { border-color:rgba(96,165,250,0.60); }
-      .admin-textarea { resize:vertical; min-height:72px; }
-      .admin-actions { display:flex; gap:8px; margin-top:6px; }
-      .admin-btn { flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.88); font-size:13px; font-weight:600; cursor:pointer; }
-      .admin-btn.primary { background:#3b82f6; border-color:#60a5fa; color:#fff; }
-      .admin-btn.primary:hover { background:#2563eb; }
-      .admin-btn:hover { background:rgba(255,255,255,0.14); }
-      .admin-status { font-size:12px; min-height:16px; margin:0; color:rgba(255,255,255,0.60); }
-      /* Milepæl-liste i modal */
-      .admin-milestone-list { display:flex; flex-direction:column; gap:6px; }
-      .admin-milestone-row { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:8px; }
-      .admin-ms-check { width:16px; height:16px; cursor:pointer; accent-color:#60a5fa; flex-shrink:0; }
-      .admin-ms-date { width:120px; flex-shrink:0; }
-      .admin-ms-remove { background:none; border:none; color:rgba(255,255,255,0.40); cursor:pointer; font-size:14px; padding:2px 6px; }
-      .admin-ms-remove:hover { color:#f87171; }
-      /* Milepæl-liste i widget */
-      .analytics-milestone-box { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:12px 14px; }
-      .analytics-milestone-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,0.50); margin-bottom:8px; }
-      .analytics-milestone-list { display:flex; flex-direction:column; gap:6px; }
-      .milestone-row { display:flex; align-items:center; gap:8px; font-size:13px; color:rgba(255,255,255,0.80); }
-      .milestone-row.done { opacity:0.55; text-decoration:line-through; }
-      .milestone-check { font-size:14px; color:#60a5fa; flex-shrink:0; }
-      .milestone-row.done .milestone-check { color:#4ade80; }
-      .milestone-title { flex:1; }
-      .milestone-date { font-size:11px; color:rgba(255,255,255,0.45); white-space:nowrap; }
-    `;
-    document.head.appendChild(s);
-  }
 
   const milestones = _state.milestones || [];
 
@@ -756,6 +695,51 @@ window.openAdminModal = openAdminModal;
    INIT
 ========================================================= */
 function initAnalytics() {
+  // Mohamed – inject stiler ved sidelast, ikke vent på modal
+  if (!document.getElementById("adminModalStyles")) {
+    const s = document.createElement("style");
+    s.id = "adminModalStyles";
+    s.textContent = `
+      #adminModal { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; }
+      .admin-backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.60); backdrop-filter:blur(4px); }
+      .admin-panel {
+        position:relative; z-index:1; width:min(520px,94vw);
+        background:rgba(14,18,30,0.97); border:1px solid rgba(255,255,255,0.16);
+        border-radius:20px; padding:24px; box-shadow:0 24px 60px rgba(0,0,0,0.6);
+        display:flex; flex-direction:column; gap:10px;
+        max-height:90vh; overflow-y:auto;
+      }
+      .admin-title { font-size:16px; font-weight:800; color:rgba(255,255,255,0.95); margin-bottom:4px; }
+      .admin-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,0.55); margin-top:4px; }
+      .admin-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.92); font-size:13px; outline:none; font-family:inherit; }
+      .admin-input:focus { border-color:rgba(96,165,250,0.60); }
+      .admin-textarea { resize:vertical; min-height:72px; }
+      .admin-actions { display:flex; gap:8px; margin-top:6px; }
+      .admin-btn { flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.88); font-size:13px; font-weight:600; cursor:pointer; }
+      .admin-btn.primary { background:#3b82f6; border-color:#60a5fa; color:#fff; }
+      .admin-btn.primary:hover { background:#2563eb; }
+      .admin-btn:hover { background:rgba(255,255,255,0.14); }
+      .admin-status { font-size:12px; min-height:16px; margin:0; color:rgba(255,255,255,0.60); }
+      .admin-milestone-list { display:flex; flex-direction:column; gap:6px; }
+      .admin-milestone-row { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:8px; }
+      .admin-ms-check { width:16px; height:16px; cursor:pointer; accent-color:#60a5fa; flex-shrink:0; }
+      .admin-ms-date { width:120px; flex-shrink:0; }
+      .admin-ms-remove { background:none; border:none; color:rgba(255,255,255,0.40); cursor:pointer; font-size:14px; padding:2px 6px; }
+      .admin-ms-remove:hover { color:#f87171; }
+      /* Milepæl-liste i widget – lastes ved sidelast */
+      .analytics-milestone-box { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:12px 14px; }
+      .analytics-milestone-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,0.50); margin-bottom:8px; }
+      .analytics-milestone-list { display:flex; flex-direction:column; gap:6px; }
+      .milestone-row { display:flex; align-items:center; gap:8px; font-size:13px; color:rgba(255,255,255,0.80); }
+      .milestone-row.done { opacity:0.55; text-decoration:line-through; }
+      .milestone-check { font-size:14px; color:#60a5fa; flex-shrink:0; }
+      .milestone-row.done .milestone-check { color:#4ade80; }
+      .milestone-title { flex:1; }
+      .milestone-date { font-size:11px; color:rgba(255,255,255,0.45); white-space:nowrap; }
+    `;
+    document.head.appendChild(s);
+  }
+
   showLoading();
   const projectId = window.currentProjectId;
   if (projectId) startLiveAnalytics(projectId);
