@@ -81,7 +81,7 @@ function renderError() {
    RENDER MEMBERS + VIS MER / FÆRRE
 ========================================================= */
 function renderMembers(members, showAll = false) {
-  const MAX = 4;
+  const MAX = 3;
 
   const visibleMembers = showAll ? members : members.slice(0, MAX);
   const hiddenCount = members.length - MAX;
