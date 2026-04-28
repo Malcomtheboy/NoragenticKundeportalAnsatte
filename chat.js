@@ -133,7 +133,32 @@ function formatTime(value) {
 
   if (!date || Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleTimeString("no-NO", {
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  if (sameDay) {
+    const time = date.toLocaleTimeString("no-NO", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    return `I dag ${time}`;
+  }
+
+  if (isYesterday) {
+    const time = date.toLocaleTimeString("no-NO", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    return `I går ${time}`;
+  }
+
+  return date.toLocaleString("no-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
   });
@@ -384,6 +409,15 @@ function bindModal() {
   if (closeBtn && modal && !closeBtn.dataset.bound) {
     closeBtn.addEventListener("click", () => modal.classList.remove("active"));
     closeBtn.dataset.bound = "true";
+  }
+
+  if (modal && !modal.dataset.bound) {
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        modal.classList.remove("active");
+      }
+    });
+    modal.dataset.bound = "true";
   }
 }
 
