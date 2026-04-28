@@ -17,10 +17,12 @@ import {
   getDoc,
   collection,
   addDoc,
+  deleteDoc,
   query,
   where,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let currentUser = null;
@@ -46,6 +48,8 @@ const openBtn = document.getElementById("expandChat");
 const closeBtn = document.getElementById("closeChat");
 
 const typingBox = document.getElementById("typingIndicator");
+let activeMenu = null;
+let editingMessageId = null;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => {
@@ -158,22 +162,161 @@ function formatTime(value) {
   return date.toLocaleString("no-NO", {
     day: "2-digit",
     month: "2-digit",
-    year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
   });
 }
 
+function closeActiveMenu() {
+  if (!activeMenu) return;
+  activeMenu.classList.remove("active");
+  activeMenu = null;
+}
+
+async function editMessage(messageId, currentText) {
+  editingMessageId = messageId;
+  closeActiveMenu();
+  loadChat();
+}
+
+async function saveEditedMessage(messageId, source) {
+  const nextText = source?.value?.trim();
+  if (!nextText) return;
+
+  try {
+    await updateDoc(doc(db, "messages", messageId), {
+      text: nextText,
+      editedAt: serverTimestamp()
+    });
+    editingMessageId = null;
+  } catch (error) {
+    console.error("Kunne ikke redigere melding:", error);
+    alert("Kunne ikke redigere melding.");
+  }
+}
+
+async function deleteMessage(messageId) {
+  const confirmed = confirm("Vil du slette denne meldingen?");
+  if (!confirmed) return;
+
+  try {
+    await deleteDoc(doc(db, "messages", messageId));
+  } catch (error) {
+    console.error("Kunne ikke slette melding:", error);
+    alert("Kunne ikke slette melding.");
+  }
+}
+
 function renderMsg(msg = {}) {
   const div = document.createElement("div");
   const isMe = msg.uid && currentUser && msg.uid === currentUser.uid;
+  const isEditing = editingMessageId === msg.id;
 
   div.classList.add("msg", isMe ? "me" : "other");
-  div.innerHTML = `
-    <div class="msg-name">${escapeHtml(msg.username || "Ukjent bruker")}</div>
-    <div class="msg-text">${escapeHtml(msg.text || "")}</div>
-    <div class="msg-time">${formatTime(msg.createdAt || msg.time)}</div>
-  `;
+
+  const head = document.createElement("div");
+  head.className = "msg-head";
+
+  const name = document.createElement("div");
+  name.className = "msg-name";
+  name.textContent = msg.username || "Ukjent bruker";
+  head.appendChild(name);
+
+  if (isMe && msg.id) {
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+
+    const menuBtn = document.createElement("button");
+    menuBtn.type = "button";
+    menuBtn.className = "msg-menu-btn";
+    menuBtn.setAttribute("aria-label", "Meldingsvalg");
+    menuBtn.textContent = "⋯";
+
+    const menu = document.createElement("div");
+    menu.className = "msg-menu";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Rediger";
+    editBtn.addEventListener("click", async () => {
+      closeActiveMenu();
+      await editMessage(msg.id, msg.text || "");
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "danger";
+    deleteBtn.textContent = "Slett";
+    deleteBtn.addEventListener("click", async () => {
+      closeActiveMenu();
+      await deleteMessage(msg.id);
+    });
+
+    menuBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const willOpen = !menu.classList.contains("active");
+      closeActiveMenu();
+      if (willOpen) {
+        menu.classList.add("active");
+        activeMenu = menu;
+      }
+    });
+
+    menu.append(editBtn, deleteBtn);
+    actions.append(menuBtn, menu);
+    head.appendChild(actions);
+  }
+
+  div.appendChild(head);
+
+  if (isEditing) {
+    const editor = document.createElement("textarea");
+    editor.className = "msg-edit-input";
+    editor.value = msg.text || "";
+
+    const editActions = document.createElement("div");
+    editActions.className = "msg-edit-actions";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "secondary";
+    cancelBtn.textContent = "Avbryt";
+    cancelBtn.addEventListener("click", () => {
+      editingMessageId = null;
+      loadChat();
+    });
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Lagre";
+    saveBtn.addEventListener("click", async () => {
+      await saveEditedMessage(msg.id, editor);
+    });
+
+    editor.addEventListener("keydown", async (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        await saveEditedMessage(msg.id, editor);
+      }
+    });
+
+    editActions.append(cancelBtn, saveBtn);
+    div.append(editor, editActions);
+    setTimeout(() => {
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+    }, 0);
+  } else {
+    const text = document.createElement("div");
+    text.className = "msg-text";
+    text.textContent = msg.text || "";
+
+    const time = document.createElement("div");
+    time.className = "msg-time";
+    time.textContent = formatTime(msg.createdAt || msg.time);
+
+    div.append(text, time);
+  }
 
   return div;
 }
@@ -465,4 +608,8 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = await buildUser(user);
   startChat();
+});
+
+document.addEventListener("click", () => {
+  closeActiveMenu();
 });

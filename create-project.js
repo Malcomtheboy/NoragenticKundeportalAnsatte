@@ -13,7 +13,6 @@ const saveProjectBtn = document.getElementById("saveProjectBtn");
 
 const projectTitleInput = document.getElementById("projectTitleInput");
 const projectCustomerInput = document.getElementById("projectCustomerInput");
-const projectDescriptionInput = document.getElementById("projectDescriptionInput");
 const projectGoalInput = document.getElementById("projectGoalInput");
 
 function openProjectModal() {
@@ -55,10 +54,9 @@ if (saveProjectBtn) {
   saveProjectBtn.addEventListener("click", async () => {
     const title = projectTitleInput.value.trim();
     const customer = projectCustomerInput.value.trim();
-    const description = projectDescriptionInput.value.trim();
     const goal = projectGoalInput.value.trim();
 
-    if (!title || !customer || !description || !goal) {
+    if (!title || !customer || !goal) {
       alert("Fyll ut alle feltene.");
       return;
     }
