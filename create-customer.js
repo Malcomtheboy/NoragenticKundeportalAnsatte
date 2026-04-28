@@ -1,15 +1,36 @@
-import { auth, db } from "./firebase-auth.js";
+import { db } from "./firebase-auth.js";
+
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
+  getAuth,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 import {
-  arrayUnion,
-  collection,
   doc,
+  setDoc,
+  collection,
   getDocs,
-  setDoc
+  updateDoc,
+  arrayUnion,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
+  authDomain: "noragenticportal.firebaseapp.com",
+  projectId: "noragenticportal",
+  storageBucket: "noragenticportal.firebasestorage.app",
+  messagingSenderId: "662374310916",
+  appId: "1:662374310916:web:a3a5d708bdd380a7210151",
+};
+
+const secondaryApp =
+  getApps().find(app => app.name === "SecondaryCustomerApp") ||
+  initializeApp(firebaseConfig, "SecondaryCustomerApp");
+
+const secondaryAuth = getAuth(secondaryApp);
 
 const createCustomerBtn = document.getElementById("createCustomerBtn");
 const createCustomerModal = document.getElementById("createCustomerModal");
@@ -21,6 +42,24 @@ const customerNameInput = document.getElementById("customerNameInput");
 const customerEmailInput = document.getElementById("customerEmailInput");
 const customerPasswordInput = document.getElementById("customerPasswordInput");
 const customerProjectSelect = document.getElementById("customerProjectSelect");
+
+async function loadProjectsIntoDropdown() {
+  if (!customerProjectSelect) return;
+
+  customerProjectSelect.innerHTML = `<option value="">Velg prosjekt</option>`;
+
+  const snapshot = await getDocs(collection(db, "projects"));
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+
+    const option = document.createElement("option");
+    option.value = docSnap.id;
+    option.textContent = data.name || "Uten navn";
+
+    customerProjectSelect.appendChild(option);
+  });
+}
 
 async function openCustomerModal() {
   createCustomerModal.classList.remove("is-hidden");
@@ -74,75 +113,39 @@ if (saveCustomerBtn) {
       saveCustomerBtn.disabled = true;
       saveCustomerBtn.textContent = "Oppretter...";
 
-      const ownerEmail = localStorage.getItem("employee_email");
-      const ownerPassword = prompt("Skriv inn ditt eget passord for å fullføre opprettelsen:");
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        email,
+        password
+      );
 
-      if (!ownerPassword) {
-        alert("Du må skrive inn passordet ditt.");
-        return;
-      }
+      const customerUser = userCredential.user;
 
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCred.user;
-
-<<<<<<< HEAD
-    // Koble kunden til prosjektet også
-    await setDoc(
-    doc(db, "projects", projectId),
-    {
-    customerIds: [newUser.uid]
-  },
-  { merge: true }
-);
-=======
-      await setDoc(doc(db, "users", newUser.uid), {
+      await setDoc(doc(db, "users", customerUser.uid), {
         name,
         email,
         role: "customer",
-        projectIds: [projectId]
+        projectIds: [projectId],
+        createdAt: serverTimestamp()
       });
 
-      await setDoc(
-        doc(db, "projects", projectId),
-        {
-          customerIds: arrayUnion(newUser.uid)
-        },
-        { merge: true }
-      );
->>>>>>> 14e27d6e48b1571f93df7bc6a93b8485a25f8541
+      await updateDoc(doc(db, "projects", projectId), {
+        customerIds: arrayUnion(customerUser.uid)
+      });
 
-      await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
+      await signOut(secondaryAuth);
 
       alert("Kundekonto opprettet.");
+
       clearCustomerForm();
       closeCustomerModalFn();
 
-    } catch (err) {
-      console.error("Feil ved oppretting av kunde:", err);
-      alert("Kunne ikke opprette kunde: " + err.message);
+    } catch (error) {
+      console.error("Feil ved oppretting av kunde:", error);
+      alert("Kunne ikke opprette kunde: " + error.message);
     } finally {
       saveCustomerBtn.disabled = false;
       saveCustomerBtn.textContent = "Opprett kunde";
     }
-  });
-}
-
-async function loadProjectsIntoDropdown() {
-  const select = document.getElementById("customerProjectSelect");
-
-  if (!select) return;
-
-  select.innerHTML = `<option value="">Velg prosjekt</option>`;
-
-  const snapshot = await getDocs(collection(db, "projects"));
-
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-
-    const option = document.createElement("option");
-    option.value = docSnap.id;
-    option.textContent = data.name || "Uten navn";
-
-    select.appendChild(option);
   });
 }
