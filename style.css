@@ -1751,6 +1751,7 @@ body{
 .hide-project-btn{
   flex:0 0 auto;
 }
+
 .landing-hidden-actions{
   display:flex;
   justify-content:flex-end;

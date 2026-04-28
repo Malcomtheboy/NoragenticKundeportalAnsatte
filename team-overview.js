@@ -26,7 +26,7 @@ let allEmployees = [];
    HELPERS
 ========================================================= */
 function escapeHtml(text) {
-  if (text === null || text === undefined) return "";
+  if (!text) return "";
   return String(text)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -36,19 +36,16 @@ function escapeHtml(text) {
 }
 
 function normalizeRole(role) {
-  if (!role) return "Ansatt";
   if (role === "owner") return "Owner";
   if (role === "employee") return "Ansatt";
-  return role;
+  return "Ansatt";
 }
 
 function getInitials(name) {
-  if (!name || !name.trim()) return "U";
-
+  if (!name) return "U";
   return name
-    .trim()
-    .split(/\s+/)
-    .map(part => part[0])
+    .split(" ")
+    .map(n => n[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
@@ -59,70 +56,55 @@ function isAllowedRole(role) {
 }
 
 function isUserOnProject(user, projectId) {
-  if (!user || !projectId) return false;
-
-  if (Array.isArray(user.projectIds) && user.projectIds.includes(projectId)) {
-    return true;
-  }
-
-  return false;
+  return user.projectIds?.includes(projectId);
 }
 
 /* =========================================================
-   RENDER
+   RENDER STATES
 ========================================================= */
 function renderLoading() {
-  if (!teamPlaceholder) return;
   teamPlaceholder.className = "team-loading";
   teamPlaceholder.innerHTML = "Laster ansatte...";
 }
 
-function renderError() {
-  if (!teamPlaceholder) return;
-  teamPlaceholder.className = "team-error";
-  teamPlaceholder.innerHTML = "Kunne ikke laste ansatte.";
-}
-
 function renderEmpty() {
-  if (!teamPlaceholder) return;
   teamPlaceholder.className = "team-empty";
   teamPlaceholder.innerHTML = "Ingen ansatte på prosjektet.";
 }
 
-/* =========================================================
-   VIS MAX 4 + VIS MER
-========================================================= */
-function renderMembers(members) {
-  if (!teamPlaceholder) return;
+function renderError() {
+  teamPlaceholder.className = "team-error";
+  teamPlaceholder.innerHTML = "Kunne ikke laste ansatte.";
+}
 
+/* =========================================================
+   RENDER MEMBERS + VIS MER / FÆRRE
+========================================================= */
+function renderMembers(members, showAll = false) {
   const MAX = 4;
-  const visibleMembers = members.slice(0, MAX);
-  const hiddenMembers = members.slice(MAX);
+
+  const visibleMembers = showAll ? members : members.slice(0, MAX);
+  const hiddenCount = members.length - MAX;
 
   let html = `
     <div class="team-list">
       ${visibleMembers.map(member => renderMember(member)).join("")}
+    </div>
   `;
 
-  if (hiddenMembers.length > 0) {
+  if (members.length > MAX) {
     html += `
-      <div id="hiddenMembers" style="display:none;">
-        ${hiddenMembers.map(member => renderMember(member)).join("")}
-      </div>
-
-      <button id="showMoreBtn" class="btn small">
-        Vis flere (${hiddenMembers.length})
+      <button id="toggleMembersBtn" class="btn small team-show-more-btn">
+        ${showAll ? "Vis færre" : `Vis flere (${hiddenCount})`}
       </button>
     `;
   }
 
-  html += `</div>`;
-
   teamPlaceholder.className = "";
   teamPlaceholder.innerHTML = html;
 
-  /* REMOVE BUTTONS */
-  teamPlaceholder.querySelectorAll(".remove-employee-btn").forEach(btn => {
+  /* REMOVE */
+  document.querySelectorAll(".remove-employee-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       await removeEmployeeFromProject(
         btn.dataset.userId,
@@ -131,12 +113,11 @@ function renderMembers(members) {
     });
   });
 
-  /* VIS MER */
-  const showMoreBtn = document.getElementById("showMoreBtn");
-  if (showMoreBtn) {
-    showMoreBtn.addEventListener("click", () => {
-      document.getElementById("hiddenMembers").style.display = "block";
-      showMoreBtn.remove();
+  /* TOGGLE */
+  const toggleBtn = document.getElementById("toggleMembersBtn");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      renderMembers(members, !showAll);
     });
   }
 }
@@ -147,28 +128,27 @@ function renderMember(member) {
   return `
     <div class="team-member">
       <div class="team-member-main">
-        <div class="team-avatar">${escapeHtml(initials)}</div>
+        <div class="team-avatar">${initials}</div>
 
         <div class="team-member-info">
           <div class="team-member-name">
-            ${escapeHtml(member.name || "Ukjent")}
+            ${escapeHtml(member.name)}
           </div>
           <div class="team-member-meta">
-            ${escapeHtml(member.email || "")}
+            ${escapeHtml(member.email)}
           </div>
         </div>
       </div>
 
       <div class="team-member-actions">
         <div class="team-member-role">
-          ${escapeHtml(normalizeRole(member.role))}
+          ${normalizeRole(member.role)}
         </div>
 
         <button
           class="remove-employee-btn"
           data-user-id="${member.id}"
-          data-user-name="${escapeHtml(member.name || "Ansatt")}"
-          type="button"
+          data-user-name="${escapeHtml(member.name)}"
         >
           Fjern
         </button>
@@ -182,6 +162,7 @@ function renderMember(member) {
 ========================================================= */
 async function fetchAllEmployees() {
   const snapshot = await getDocs(collection(db, "users"));
+
   const employees = [];
 
   snapshot.forEach(docSnap => {
@@ -191,22 +172,18 @@ async function fetchAllEmployees() {
 
     employees.push({
       id: docSnap.id,
-      name: user.name || "",
-      email: user.email || "",
-      role: user.role || "employee",
-      projectIds: Array.isArray(user.projectIds) ? user.projectIds : []
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      projectIds: user.projectIds || []
     });
   });
 
-  employees.sort((a, b) =>
-    (a.name || "").localeCompare((b.name || ""), "no")
-  );
-
-  return employees;
+  return employees.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function loadTeamOverview(projectId) {
-  if (!projectId || !teamPlaceholder) return;
+  if (!projectId) return;
 
   currentProjectId = projectId;
   renderLoading();
@@ -225,8 +202,8 @@ async function loadTeamOverview(projectId) {
 
     renderMembers(members);
 
-  } catch (error) {
-    console.error("Team overview error:", error);
+  } catch (err) {
+    console.error(err);
     renderError();
   }
 }
@@ -235,9 +212,6 @@ async function loadTeamOverview(projectId) {
    MODAL
 ========================================================= */
 function openEmployeeModal() {
-  if (!addEmployeeModal || !employeeSelect) return;
-
-  employeeModalState.textContent = "";
   employeeSelect.innerHTML = `<option value="">Velg ansatt</option>`;
 
   const available = allEmployees.filter(
@@ -252,53 +226,42 @@ function openEmployeeModal() {
   });
 
   if (!available.length) {
-    employeeModalState.textContent = "Alle ansatte er allerede lagt til.";
+    employeeModalState.textContent = "Alle ansatte er lagt til.";
   }
 
   addEmployeeModal.classList.remove("is-hidden");
 }
 
 function closeEmployeeModal() {
-  addEmployeeModal?.classList.add("is-hidden");
+  addEmployeeModal.classList.add("is-hidden");
 }
 
 /* =========================================================
    ADD / REMOVE
 ========================================================= */
 async function addEmployeeToProject() {
-  const selectedUserId = employeeSelect.value;
+  const userId = employeeSelect.value;
 
-  if (!selectedUserId) {
-    employeeModalState.textContent = "Velg en ansatt.";
+  if (!userId) {
+    employeeModalState.textContent = "Velg ansatt.";
     return;
   }
 
-  const user = allEmployees.find(u => u.id === selectedUserId);
+  const user = allEmployees.find(u => u.id === userId);
   if (!user) return;
 
-  try {
-    saveEmployeeBtn.disabled = true;
+  const updated = [...user.projectIds, currentProjectId];
 
-    const updated = [...user.projectIds, currentProjectId];
+  await updateDoc(doc(db, "users", userId), {
+    projectIds: updated
+  });
 
-    await updateDoc(doc(db, "users", selectedUserId), {
-      projectIds: updated
-    });
-
-    closeEmployeeModal();
-    await loadTeamOverview(currentProjectId);
-
-  } catch (err) {
-    console.error(err);
-    employeeModalState.textContent = "Feil ved lagring.";
-  } finally {
-    saveEmployeeBtn.disabled = false;
-  }
+  closeEmployeeModal();
+  loadTeamOverview(currentProjectId);
 }
 
 async function removeEmployeeFromProject(userId, userName) {
-  const confirmed = confirm(`Fjern ${userName}?`);
-  if (!confirmed) return;
+  if (!confirm(`Fjern ${userName}?`)) return;
 
   const user = allEmployees.find(u => u.id === userId);
   if (!user) return;
@@ -309,14 +272,14 @@ async function removeEmployeeFromProject(userId, userName) {
     projectIds: updated
   });
 
-  await loadTeamOverview(currentProjectId);
+  loadTeamOverview(currentProjectId);
 }
 
 /* =========================================================
    EVENTS
 ========================================================= */
-window.addEventListener("projectChanged", async (event) => {
-  await loadTeamOverview(event.detail?.projectId);
+window.addEventListener("projectChanged", (e) => {
+  loadTeamOverview(e.detail.projectId);
 });
 
 addEmployeeBtn?.addEventListener("click", openEmployeeModal);
