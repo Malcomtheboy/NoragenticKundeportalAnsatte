@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Noragentic – Prosjektoversikt</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg"></div>
+
+  <header class="topbar">
+    <div class="logo">N</div>
+
+    <div class="topbar-actions">
+      <button class="btn small" id="logoutBtn" type="button">Logg ut</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="landing-hero">
+      <div>
+        <h1 id="welcomeText">Velkommen</h1>
+        <h2>Dine prosjekter</h2>
+        <p class="section-description">
+          Velg prosjektet du vil åpne.
+        </p>
+      </div>
+    </section>
+
+    <section id="notificationBox" class="notification-box is-hidden">
+      <div class="notification-title">Varsler</div>
+      <div id="notificationList" class="notification-list"></div>
+    </section>
+    
+    <div class="landing-hidden-actions">
+      <button id="openHiddenProjectsBtn" class="btn small" type="button">
+        Skjulte prosjekter
+      </button>
+    </div>
+
+    <div id="hiddenProjectsModal" class="team-modal is-hidden">
+      <div class="team-modal-card">
+        <div class="team-modal-head">
+          <div class="team-modal-title">Skjulte prosjekter</div>
+          <button id="closeHiddenProjectsBtn" class="team-modal-close" type="button">✕</button>
+        </div>
+
+        <div id="hiddenProjectsList" class="team-modal-body"></div>
+      </div>
+    </div>
+
+    <section id="landingProjectsGrid" class="landing-projects-grid">
+      <div class="loading-state">Laster prosjekter...</div>
+    </section>
+  </main>
+
+  <script type="module" src="script.js"></script>
+  <script type="module" src="landing.js"></script>
+</body>
+</html>

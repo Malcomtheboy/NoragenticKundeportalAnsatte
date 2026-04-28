@@ -14,14 +14,15 @@ onAuthStateChanged(auth, (user) => {
   const path = window.location.pathname.toLowerCase();
   const onLogin = path.endsWith("login.html");
   const onDashboard = path.endsWith("index.html") || path.endsWith("/");
+  const onLanding = path.endsWith("landing.html");//@aslak la til enda en side den må sjekke
 
-  if (onDashboard && !user) {
-    window.location.href = "login.html";
-    return;
-  }
+if ((onDashboard || onLanding) && !user) {
+  window.location.href = "login.html";
+  return;
+}
 
   if (onLogin && user) {
-    window.location.href = "index.html";
+    window.location.href = "landing.html";//@Aslak endet den til landingssiden
     return;
   }
 
