@@ -51,7 +51,7 @@ if (form) {
 
       hint.textContent = "Innlogging vellykket. Sender videre...";
       setTimeout(() => {
-        window.location.href = "index.html";
+        window.location.href = "landing.html";
       }, 300);
 
     } catch (error) {
