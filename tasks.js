@@ -150,11 +150,12 @@ function renderTasks(snapshot) {
         done: e.target.checked
       });
       // Mohamed – sjekk om alle tasks er done etter hver endring
-      await checkAndCompleteMilestone(currentProjectId, activeMilestoneId);
+      await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
 
     row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
       await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
+      await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
   });
 
@@ -166,7 +167,7 @@ function renderTasks(snapshot) {
 
   // Mohamed – auto-fullfør milepæl hvis alle tasks er done og det finnes tasks
   if (total > 0 && doneCount === total) {
-    checkAndCompleteMilestone(currentProjectId, activeMilestoneId);
+   syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
   }
 }
 
@@ -174,42 +175,37 @@ function renderTasks(snapshot) {
    AUTO-FULLFØR MILEPÆL
    Mohamed – når alle tasks i en milepæl er done, sett milestone.done = true
 ========================================================= */
-async function checkAndCompleteMilestone(projectId, milestoneId) {
+async function syncMilestoneStatusFromTasks(projectId, milestoneId) {
   if (!projectId || !milestoneId) return;
 
   try {
-    // Hent alle tasks for denne milepælen
     const snap = await getDocs(query(
       collection(db, "projects", projectId, "tasks"),
       where("delmalId", "==", milestoneId)
     ));
 
-    if (snap.empty) return;
-
     const total = snap.size;
-    const done  = snap.docs.filter(d => d.data().done).length;
+    const done = snap.docs.filter(d => d.data().done).length;
 
-    if (done < total) return; // Ikke alle done ennå
-
-    // Mohamed – hent prosjektdokument og oppdater milepælen
     const projSnap = await getDoc(doc(db, "projects", projectId));
     if (!projSnap.exists()) return;
 
     const milestones = projSnap.data().milestones || [];
     const idx = milestones.findIndex(m => m.id === milestoneId);
     if (idx === -1) return;
-    if (milestones[idx].done) return; // Allerede ferdig
 
-    milestones[idx].done = true;
+    const shouldBeDone = total > 0 && done === total;
+
+    if (milestones[idx].done === shouldBeDone) return;
+
+    milestones[idx].done = shouldBeDone;
 
     await setDoc(doc(db, "projects", projectId), {
       milestones,
       updatedAt: serverTimestamp()
     }, { merge: true });
-
-    console.log(`Mohamed – Milepæl "${milestones[idx].title}" auto-fullført! 🎉`);
   } catch (err) {
-    console.error("Mohamed – checkAndCompleteMilestone feilet:", err);
+    console.error("syncMilestoneStatusFromTasks feilet:", err);
   }
 }
 
@@ -305,6 +301,8 @@ clearDoneBtn?.addEventListener("click", async () => {
   for (const d of snap.docs) {
     await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
   }
+  await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
+
 });
 
 window.addEventListener("projectChanged", (e) => {
