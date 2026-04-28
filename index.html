@@ -13,33 +13,32 @@
     <div class="logo">N</div>
     <nav class="project-tabs hidden" id="projectTabs"></nav>
 
-<div class="topbar-actions">
-  <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
-  <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
-  <button class="btn small hidden" id="createEmployeeBtn">+ Ansatt</button>
-  <button class="btn small" id="logoutBtn" type="button">Logg ut</button></div>
+    <div class="topbar-actions">
+      <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
+      <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
+      <button class="btn small hidden" id="createEmployeeBtn">+ Ansatt</button>
+      <button class="btn small" id="logoutBtn" type="button">Logg ut</button>
+    </div>
   </header>
 
   <main class="wrap">
 
     <section class="hero">
 
-    <div class="card small">
-     <div class="label">Valgt prosjekt</div>
-     <div id="projectSelectorContainer"></div>
-    </div>
+      <div class="card small">
+        <div class="label">Valgt prosjekt</div>
+        <div id="projectSelectorContainer"></div>
+      </div>
 
       <div class="card wide">
         <div class="hero-top-row">
           <div class="hero-goal-block">
             <div class="label">Nåværende delmål:</div>
-            <!-- goalText fra Firestore oppdateres av analytics.js -->
             <div class="big" id="projectGoal">Her kan prosjektets aktive delmål vises</div>
           </div>
           <div class="hero-right">
             <div class="hero-pct-badge" id="heroProgressPct">0%</div>
-            <!-- Rediger-knapp åpner admin modal -->
-            <button class="hero-edit-btn" id="heroEditBtn" title="Rediger prosjekt">✏️</button>
+            <!-- ✏️ fjernet herfra -->
           </div>
         </div>
         <div class="hero-bar-track">
@@ -54,7 +53,11 @@
       <div class="left-column">
 
         <section class="panel card">
-          <div class="section-title">Ukesstatus</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div class="section-title" style="margin-bottom:0">Ukesstatus</div>
+            <button id="heroEditBtn" title="Rediger prosjekt"
+                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer;color:rgba(255,255,255,0.85)">✏️</button>
+          </div>
           <p class="section-description">Ukentlig fremdrift og statistikk – oppdateres i sanntid.</p>
           <div id="weekPlaceholder">
             <div class="analytics-loading">
@@ -65,38 +68,29 @@
         </section>
 
         <section class="panel card">
-     <div class="section-title" id="taskSectionTitle">Tasks (0/0 ferdig)</div>
-     <p class="section-description">Tasks koblet til aktivt delmål.</p>
+          <div class="section-title" id="taskSectionTitle">Tasks (0/0 ferdig)</div>
+          <p class="section-description">Tasks koblet til aktivt delmål.</p>
+          <div class="task-box">
+            <div class="task-input-row">
+              <input id="taskInput" type="text" placeholder="Ny task..." />
+              <button id="addTaskBtn" class="btn" type="button">Legg til task</button>
+              <button id="toggleDoneBtn" class="btn small" type="button">Vis fullførte</button>
+              <button id="clearDoneBtn" class="btn small" type="button">Fjern fullførte</button>
+            </div>
+            <div id="taskList" class="task-list"></div>
+          </div>
+        </section>
 
-     <div class="task-box">
-     <div class="task-input-row">
-      <input id="taskInput" type="text" placeholder="Ny task..." />
-      <button id="addTaskBtn" class="btn" type="button">Legg til task</button>
-      <button id="toggleDoneBtn" class="btn small" type="button">Vis fullførte</button>
-      <button id="clearDoneBtn" class="btn small" type="button">Fjern fullførte</button>
-
-     </div>
-     <div id="taskList" class="task-list"></div>
-     </div>
-     </section>
-        
         <section class="panel card">
           <div class="section-title">Filer</div>
-        
           <div id="fileManager" class="file-manager-shell">
             <div class="file-manager-topbar">
               <div id="breadcrumbBar" class="breadcrumb-bar"></div>
-        
               <div class="file-actions">
-                <button id="newFolderBtn" class="upload-btn secondary" type="button">
-                  Ny mappe
-                </button>
-                <button id="uploadBtn" class="upload-btn" type="button">
-                  Last opp
-                </button>
+                <button id="newFolderBtn" class="upload-btn secondary" type="button">Ny mappe</button>
+                <button id="uploadBtn" class="upload-btn" type="button">Last opp</button>
               </div>
             </div>
-        
             <input type="file" id="fileInput" hidden />
             <div id="contentsList" class="loading-state">Laster...</div>
           </div>
@@ -110,214 +104,137 @@
           <div class="team-header">
             <div>
               <div class="section-title">Ansatte på prosjekt</div>
-              <p class="section-description">
-                Oversikt over hvilke ansatte som er tilknyttet prosjektet og deres roller.
-              </p>
+              <p class="section-description">Oversikt over hvilke ansatte som er tilknyttet prosjektet og deres roller.</p>
             </div>
-
-            <button id="addEmployeeBtn" class="btn small" type="button">
-              + Legg til ansatt
-            </button>
+            <button id="addEmployeeBtn" class="btn small" type="button">+ Legg til ansatt</button>
           </div>
-
-          <div id="teamPlaceholder" class="team-loading">
-            Laster ansatte...
-          </div>
+          <div id="teamPlaceholder" class="team-loading">Laster ansatte...</div>
         </section>
+
         <div id="addEmployeeModal" class="team-modal is-hidden">
-            <div class="team-modal-card">
-              <div class="team-modal-head">
-                <div class="team-modal-title">Legg til ansatt</div>
-                <button id="closeEmployeeModalBtn" class="team-modal-close" type="button">✕</button>
-              </div>
-        
-              <div class="team-modal-body">
-                <p class="team-modal-text">
-                  Velg en ansatt som skal kobles til valgt prosjekt.
-                </p>
-        
-                <select id="employeeSelect" class="team-select">
-                  <option value="">Velg ansatt</option>
-                </select>
-        
-                <div id="employeeModalState" class="team-modal-state"></div>
-              </div>
-        
-              <div class="team-modal-footer">
-                <button id="cancelEmployeeModalBtn" class="btn" type="button">Avbryt</button>
-                <button id="saveEmployeeBtn" class="btn primary" type="button">Legg til</button>
-              </div>
+          <div class="team-modal-card">
+            <div class="team-modal-head">
+              <div class="team-modal-title">Legg til ansatt</div>
+              <button id="closeEmployeeModalBtn" class="team-modal-close" type="button">✕</button>
+            </div>
+            <div class="team-modal-body">
+              <p class="team-modal-text">Velg en ansatt som skal kobles til valgt prosjekt.</p>
+              <select id="employeeSelect" class="team-select">
+                <option value="">Velg ansatt</option>
+              </select>
+              <div id="employeeModalState" class="team-modal-state"></div>
+            </div>
+            <div class="team-modal-footer">
+              <button id="cancelEmployeeModalBtn" class="btn" type="button">Avbryt</button>
+              <button id="saveEmployeeBtn" class="btn primary" type="button">Legg til</button>
             </div>
           </div>
+        </div>
 
-      <section class="panel card">
-      <div class="section-title">Prosjektbeskrivelse</div>
-     <p class="section-description">En beskrivelse av prosjektet, mål og kontekst.</p>
-     <div id="projectDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
-     </section>
+        <section class="panel card">
+          <div class="section-title">Prosjektbeskrivelse</div>
+          <p class="section-description">En beskrivelse av prosjektet, mål og kontekst.</p>
+          <div id="projectDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
+        </section>
 
-     <section class="panel card">
-     <div class="section-title">Kundebeskrivelse</div>
-     <p class="section-description">Info om kunden og behovene deres.</p>
-     <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
-     </section>
+        <section class="panel card">
+          <div class="section-title">Kundebeskrivelse</div>
+          <p class="section-description">Info om kunden og behovene deres.</p>
+          <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
+        </section>
 
-     
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
           <p class="section-description">Her er gruppechat mellom kunde og ansatte på prosjektet.</p>
-         <!-- 💬 MINI CHAT -->
-         <div class="chat-container">
-            
-          <div class="chat-top">
-            <span>Gruppechat</span>
-            <button id="expandChat">⤢</button>
+          <div class="chat-container">
+            <div class="chat-top">
+              <span>Gruppechat</span>
+              <button id="expandChat">⤢</button>
+            </div>
+            <div id="chatMessages" class="chat-messages"></div>
+            <form id="chatForm" class="chat-input">
+              <input id="chatInput" type="text" placeholder="Skriv melding..." />
+              <button type="submit">Send</button>
+            </form>
           </div>
-      
-          <div id="chatMessages" class="chat-messages"></div>
-      
-          <form id="chatForm" class="chat-input">
-            <input id="chatInput" type="text" placeholder="Skriv melding..." />
-            <button type="submit">Send</button>
-          </form>
-      
-        </div>
-      </section>
-      
-      <!-- FULLSCREEN POPUP (ENKELT + RIKTIG) -->
-      <div id="chatModal" class="chat-modal">
-      
-        <div class="chat-modal-content">
-      
-          <div class="chat-header">
-            <span>Gruppechat</span>
-            <button id="closeChat">✕</button>
-          </div>
-      
-          <div id="chatMessagesBig" class="chat-messages"></div>
-      
-          <form id="chatFormBig" class="chat-input">
-            <input id="chatInputBig" type="text" placeholder="Skriv melding..." />
-            <button type="submit">Send</button>
-          </form>
-      
-        </div>
-      
+        </section>
+
       </div>
     </section>
   </main>
 
+  <div id="chatModal" class="chat-modal">
+    <div class="chat-modal-content">
+      <div class="chat-header">
+        <span>Gruppechat</span>
+        <button id="closeChat">✕</button>
+      </div>
+      <div id="chatMessagesBig" class="chat-messages"></div>
+      <form id="chatFormBig" class="chat-input">
+        <input id="chatInputBig" type="text" placeholder="Skriv melding..." />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-center is-hidden" id="createProjectModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett prosjekt</div>
-      <button class="x" id="closeProjectModal">✕</button>
-    </div>
-
-    <div class="center-body">
-      <label class="field">
-        <div class="field-label">Prosjektnavn</div>
-        <input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Kundenavn / firma</div>
-        <input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Beskrivelse</div>
-        <input id="projectDescriptionInput" type="text" placeholder="Kort prosjektbeskrivelse" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Startstatus / delmål</div>
-        <input id="projectGoalInput" type="text" placeholder="F.eks. Oppstart og planlegging" />
-      </label>
-
-      <p class="small-note">
-        Prosjektet lagres i Firestore og kan senere brukes når kundekontoer opprettes.
-      </p>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelProjectModal">Avbryt</button>
-      <button class="btn primary" id="saveProjectBtn">Opprett prosjekt</button>
+    <div class="center-card">
+      <div class="center-head">
+        <div class="center-title">Opprett prosjekt</div>
+        <button class="x" id="closeProjectModal">✕</button>
+      </div>
+      <div class="center-body">
+        <label class="field"><div class="field-label">Prosjektnavn</div><input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" /></label>
+        <label class="field"><div class="field-label">Kundenavn / firma</div><input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" /></label>
+        <label class="field"><div class="field-label">Beskrivelse</div><input id="projectDescriptionInput" type="text" placeholder="Kort prosjektbeskrivelse" /></label>
+        <label class="field"><div class="field-label">Startstatus / delmål</div><input id="projectGoalInput" type="text" placeholder="F.eks. Oppstart og planlegging" /></label>
+        <p class="small-note">Prosjektet lagres i Firestore og kan senere brukes når kundekontoer opprettes.</p>
+      </div>
+      <div class="center-foot">
+        <button class="btn" id="cancelProjectModal">Avbryt</button>
+        <button class="btn primary" id="saveProjectBtn">Opprett prosjekt</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="modal-center is-hidden" id="createCustomerModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett kundekonto</div>
-      <button class="x" id="closeCustomerModal">✕</button>
-    </div>
-
-    <div class="center-body">
-      <label class="field">
-        <div class="field-label">Kundenavn</div>
-        <input id="customerNameInput" type="text" placeholder="F.eks. Firma AS" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">E-post</div>
-        <input id="customerEmailInput" type="email" placeholder="kunde@firma.no" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Passord</div>
-        <input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Prosjekt-ID</div>
-        <select id="customerProjectSelect"></select>      </label>
-      <p class="small-note">
-        Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.
-      </p>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelCustomerModal">Avbryt</button>
-      <button class="btn primary" id="saveCustomerBtn">Opprett kunde</button>
+  <div class="modal-center is-hidden" id="createCustomerModal">
+    <div class="center-card">
+      <div class="center-head">
+        <div class="center-title">Opprett kundekonto</div>
+        <button class="x" id="closeCustomerModal">✕</button>
+      </div>
+      <div class="center-body">
+        <label class="field"><div class="field-label">Kundenavn</div><input id="customerNameInput" type="text" placeholder="F.eks. Firma AS" /></label>
+        <label class="field"><div class="field-label">E-post</div><input id="customerEmailInput" type="email" placeholder="kunde@firma.no" /></label>
+        <label class="field"><div class="field-label">Passord</div><input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" /></label>
+        <label class="field"><div class="field-label">Prosjekt-ID</div><select id="customerProjectSelect"></select></label>
+        <p class="small-note">Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.</p>
+      </div>
+      <div class="center-foot">
+        <button class="btn" id="cancelCustomerModal">Avbryt</button>
+        <button class="btn primary" id="saveCustomerBtn">Opprett kunde</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="modal-center is-hidden" id="createEmployeeModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett ansatt</div>
-      <button class="x" id="closeEmployeeModalX">✕</button>
+  <div class="modal-center is-hidden" id="createEmployeeModal">
+    <div class="center-card">
+      <div class="center-head">
+        <div class="center-title">Opprett ansatt</div>
+        <button class="x" id="closeEmployeeModalX">✕</button>
+      </div>
+      <div class="center-body">
+        <label class="field"><div class="field-label">Navn</div><input id="employeeNameInput" type="text" placeholder="F.eks. Ola Nordmann" /></label>
+        <label class="field"><div class="field-label">E-post</div><input id="employeeEmailInput" type="email" placeholder="ansatt@firma.no" /></label>
+        <label class="field"><div class="field-label">Passord</div><input id="employeePasswordInput" type="text" placeholder="Midlertidig passord" /></label>
+        <p class="small-note">Ansatten opprettes i Firebase Authentication og lagres med rollen employee.</p>
+      </div>
+      <div class="center-foot">
+        <button class="btn" id="cancelEmployeeModal">Avbryt</button>
+        <button class="btn primary" id="createEmployeeSaveBtn">Opprett ansatt</button>
+      </div>
     </div>
-
-    <div class="center-body">
-      <label class="field">
-        <div class="field-label">Navn</div>
-        <input id="employeeNameInput" type="text" placeholder="F.eks. Ola Nordmann" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">E-post</div>
-        <input id="employeeEmailInput" type="email" placeholder="ansatt@firma.no" />
-      </label>
-
-      <label class="field">
-        <div class="field-label">Passord</div>
-        <input id="employeePasswordInput" type="text" placeholder="Midlertidig passord" />
-      </label>
-
-      <p class="small-note">
-        Ansatten opprettes i Firebase Authentication og lagres med rollen employee.
-      </p>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelEmployeeModal">Avbryt</button>
-      <button class="btn primary" id="createEmployeeSaveBtn">Opprett ansatt</button>    </div>
   </div>
-</div>
 
   <script type="module" src="chat.js"></script>
   <script type="module" src="script.js"></script>
