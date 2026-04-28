@@ -3,7 +3,13 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  arrayUnion,
+  collection,
+  doc,
+  getDocs,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const createCustomerBtn = document.getElementById("createCustomerBtn");
 const createCustomerModal = document.getElementById("createCustomerModal");
@@ -29,7 +35,7 @@ function clearCustomerForm() {
   customerNameInput.value = "";
   customerEmailInput.value = "";
   customerPasswordInput.value = "";
-  customerProjectIdInput.value = "";
+  customerProjectSelect.value = "";
 }
 
 if (createCustomerBtn) {
@@ -79,6 +85,7 @@ if (saveCustomerBtn) {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCred.user;
 
+<<<<<<< HEAD
     // Koble kunden til prosjektet også
     await setDoc(
     doc(db, "projects", projectId),
@@ -87,6 +94,22 @@ if (saveCustomerBtn) {
   },
   { merge: true }
 );
+=======
+      await setDoc(doc(db, "users", newUser.uid), {
+        name,
+        email,
+        role: "customer",
+        projectIds: [projectId]
+      });
+
+      await setDoc(
+        doc(db, "projects", projectId),
+        {
+          customerIds: arrayUnion(newUser.uid)
+        },
+        { merge: true }
+      );
+>>>>>>> 14e27d6e48b1571f93df7bc6a93b8485a25f8541
 
       await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
 
@@ -103,11 +126,6 @@ if (saveCustomerBtn) {
     }
   });
 }
-
-import {
-  collection,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 async function loadProjectsIntoDropdown() {
   const select = document.getElementById("customerProjectSelect");
