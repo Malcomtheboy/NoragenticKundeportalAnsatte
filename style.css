@@ -787,11 +787,19 @@ body{
   max-width:min(78%, 420px);
   padding:10px 12px;
   margin:0 0 10px;
+  position:relative;
   border-radius:16px;
   word-break:break-word;
   line-height:1.35;
   border:1px solid rgba(255,255,255,0.08);
   box-shadow:0 6px 18px rgba(0,0,0,0.12);
+}
+
+.msg-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
 }
 
 .me {
@@ -827,10 +835,116 @@ body{
   margin-top:2px;
 }
 
+.msg-actions{
+  position:relative;
+  flex-shrink:0;
+}
+
+.msg-menu-btn{
+  width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  border:none;
+  border-radius:999px;
+  background:rgba(255,255,255,0.10);
+  color:rgba(255,255,255,0.72);
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+  opacity:0.78;
+}
+
+.msg-menu-btn:hover{
+  background:rgba(255,255,255,0.20);
+  color:rgba(255,255,255,0.94);
+}
+
+.msg-menu{
+  position:absolute;
+  top:28px;
+  right:0;
+  min-width:120px;
+  display:none;
+  flex-direction:column;
+  gap:2px;
+  padding:6px;
+  border-radius:12px;
+  background:rgba(11,17,33,0.96);
+  border:1px solid rgba(255,255,255,0.10);
+  box-shadow:0 16px 40px rgba(0,0,0,0.28);
+  z-index:10;
+}
+
+.msg-menu.active{
+  display:flex;
+}
+
+.msg-menu button{
+  width:100%;
+  padding:8px 10px;
+  border:none;
+  border-radius:8px;
+  background:transparent;
+  color:rgba(255,255,255,0.92);
+  text-align:left;
+  cursor:pointer;
+  font-size:13px;
+}
+
+.msg-menu button:hover{
+  background:rgba(255,255,255,0.08);
+}
+
+.msg-menu button.danger{
+  color:#f8b4b4;
+}
+
+.msg-edit-input{
+  width:100%;
+  min-height:76px;
+  resize:vertical;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(10,16,34,0.62);
+  color:rgba(255,255,255,0.96);
+  outline:none;
+  font:inherit;
+  line-height:1.4;
+}
+
+.msg-edit-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:4px;
+}
+
+.msg-edit-actions button{
+  border:none;
+  border-radius:10px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  color:white;
+  background:linear-gradient(135deg, #78a2ff, #4a83f2);
+}
+
+.msg-edit-actions button.secondary{
+  background:rgba(255,255,255,0.10);
+  color:rgba(255,255,255,0.92);
+}
+
 #chatMessages .msg{
   max-width:72%;
   padding:9px 11px;
   border-radius:14px;
+}
+
+#chatMessages .msg-head{
+  gap:6px;
 }
 
 #chatMessages .msg-text{
@@ -844,6 +958,12 @@ body{
 
 #chatMessages .msg-time{
   font-size:10px;
+}
+
+#chatMessages .msg-menu-btn{
+  width:18px;
+  height:18px;
+  font-size:12px;
 }
 
 #chatMessagesBig .msg{
@@ -1819,7 +1939,6 @@ body{
 .hide-project-btn{
   flex:0 0 auto;
 }
-
 .landing-hidden-actions{
   display:flex;
   justify-content:flex-end;
