@@ -63,6 +63,22 @@
             </div>
           </div>
         </section>
+
+        <section class="panel card">
+     <div class="section-title" id="taskSectionTitle">Tasks (0/0 ferdig)</div>
+     <p class="section-description">Tasks koblet til aktivt delmål.</p>
+
+     <div class="task-box">
+     <div class="task-input-row">
+      <input id="taskInput" type="text" placeholder="Ny task..." />
+      <button id="addTaskBtn" class="btn" type="button">Legg til task</button>
+      <button id="toggleDoneBtn" class="btn small" type="button">Vis fullførte</button>
+      <button id="clearDoneBtn" class="btn small" type="button">Fjern fullførte</button>
+
+     </div>
+     <div id="taskList" class="task-list"></div>
+     </div>
+     </section>
         
         <section class="panel card">
           <div class="section-title">Filer</div>
@@ -146,7 +162,7 @@
      <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
      </section>
 
-
+     
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
           <p class="section-description">Her er gruppechat mellom kunde og ansatte på prosjektet.</p>
@@ -309,8 +325,9 @@
   <script type="module" src="create-project.js"></script>
   <script type="module" src="create-customer.js"></script>
   <script type="module" src="create-employee.js"></script>
-  <script type="module" src="analytics.js"></script>
+  <script type="module" src="Analytics.js"></script>
   <script type="module" src="team-overview.js"></script>
+  <script type="module" src="tasks.js"></script>
   <script type="module" src="project.js"></script>
 </body>
 </html>
