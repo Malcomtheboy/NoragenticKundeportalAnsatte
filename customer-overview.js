@@ -4,7 +4,8 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc
+  updateDoc,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* =========================================================
@@ -250,6 +251,17 @@ async function addCustomerToProject() {
     projectIds: updated
   });
 
+const projectSnap = await getDoc(doc(db, "projects", currentProjectId));
+const projectData = projectSnap.exists() ? projectSnap.data() : {};
+const customerIds = Array.isArray(projectData.customerIds) ? projectData.customerIds : [];
+
+await updateDoc(doc(db, "projects", currentProjectId), {
+  customerIds: customerIds.includes(userId)
+    ? customerIds
+    : [...customerIds, userId]
+});
+
+
   closeCustomerModal();
   loadCustomerOverview(currentProjectId);
 }
@@ -265,6 +277,15 @@ async function removeCustomerFromProject(userId, userName) {
   await updateDoc(doc(db, "users", userId), {
     projectIds: updated
   });
+
+const projectSnap = await getDoc(doc(db, "projects", currentProjectId));
+const projectData = projectSnap.exists() ? projectSnap.data() : {};
+const customerIds = Array.isArray(projectData.customerIds) ? projectData.customerIds : [];
+
+await updateDoc(doc(db, "projects", currentProjectId), {
+  customerIds: customerIds.filter(id => id !== userId)
+});
+
 
   loadCustomerOverview(currentProjectId);
 }

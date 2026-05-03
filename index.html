@@ -132,40 +132,36 @@
         </div>
 
                 <section class="panel card">
-          <div class="team-card-head">
+          <div class="team-header">
             <div>
               <div class="section-title">Kunder på prosjekt</div>
-              <p class="section-description">
-                Oversikt over hvilke kunder som er tilknyttet prosjektet.
-              </p>
+              <p class="section-description">Oversikt over hvilke kunder som er tilknyttet prosjektet.</p>
             </div>
-            <button id="addCustomerToProjectBtn" class="btn small team-add-btn" type="button">
-              + Legg til kunde
-            </button>
+            <button id="addCustomerToProjectBtn" class="btn small" type="button">+ Legg til kunde</button>
           </div>
-
           <div id="customerPlaceholder" class="team-loading">Laster kunder...</div>
+        </section>
 
-          <div id="addCustomerModal" class="team-modal is-hidden">
-            <div class="team-modal-card">
-              <div class="team-modal-head">
-                <div class="team-modal-title">Legg til kunde</div>
-                <button id="closeCustomerProjectModalBtn" class="team-modal-close" type="button">✕</button>
-              </div>
-              <div class="team-modal-body">
-                <p class="team-modal-text">Velg en kunde som skal kobles til valgt prosjekt.</p>
-                <select id="customerProjectSelectModal" class="team-select">
-                  <option value="">Velg kunde</option>
-                </select>
-                <div id="customerProjectModalState" class="team-modal-state"></div>
-              </div>
-              <div class="team-modal-footer">
-                <button id="cancelCustomerProjectModalBtn" class="btn" type="button">Avbryt</button>
-                <button id="saveCustomerProjectBtn" class="btn primary" type="button">Legg til</button>
-              </div>
+        <div id="addCustomerModal" class="team-modal is-hidden">
+          <div class="team-modal-card">
+            <div class="team-modal-head">
+              <div class="team-modal-title">Legg til kunde</div>
+              <button id="closeCustomerProjectModalBtn" class="team-modal-close" type="button">✕</button>
+            </div>
+            <div class="team-modal-body">
+              <p class="team-modal-text">Velg en kunde som skal kobles til valgt prosjekt.</p>
+                            <select id="customerProjectSelectModal" class="team-select">
+                <option value="">Velg kunde</option>
+              </select>
+              <div id="customerProjectModalState" class="team-modal-state"></div>
+            </div>
+            <div class="team-modal-footer">
+              <button id="cancelCustomerProjectModalBtn" class="btn" type="button">Avbryt</button>
+              <button id="saveCustomerProjectBtn" class="btn primary" type="button">Legg til</button>
             </div>
           </div>
-        </section>
+        </div>
+
 
 
         <section class="panel card">
@@ -223,6 +219,7 @@
       <div class="center-body">
         <label class="field"><div class="field-label">Prosjektnavn</div><input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" /></label>
         <label class="field"><div class="field-label">Kundenavn / firma</div><input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" /></label>
+        <label class="field"><div class="field-label">Beskrivelse</div><input id="projectDescriptionInput" type="text" placeholder="Kort prosjektbeskrivelse" /></label>
         <label class="field"><div class="field-label">Startstatus / delmål</div><input id="projectGoalInput" type="text" placeholder="F.eks. Oppstart og planlegging" /></label>
         <p class="small-note">Prosjektet lagres i Firestore og kan senere brukes når kundekontoer opprettes.</p>
       </div>
@@ -282,5 +279,7 @@
   <script type="module" src="team-overview.js"></script>
   <script type="module" src="tasks.js"></script>
   <script type="module" src="project.js"></script>
+  <script type="module" src="customer-overview.js"></script>
+
 </body>
 </html>

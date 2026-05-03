@@ -4,7 +4,8 @@ import {
   collection,
   getDocs,
   doc,
-  updateDoc
+  updateDoc,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* =========================================================
@@ -256,6 +257,17 @@ async function addEmployeeToProject() {
     projectIds: updated
   });
 
+  const projectSnap = await getDoc(doc(db, "projects", currentProjectId));
+  const projectData = projectSnap.exists() ? projectSnap.data() : {};
+  const employeeIds = Array.isArray(projectData.employeeIds) ? projectData.employeeIds : [];
+
+  await updateDoc(doc(db, "projects", currentProjectId), {
+    employeeIds: employeeIds.includes(userId)
+      ? employeeIds
+      : [...employeeIds, userId]
+  });
+
+
   closeEmployeeModal();
   loadTeamOverview(currentProjectId);
 }
@@ -271,6 +283,15 @@ async function removeEmployeeFromProject(userId, userName) {
   await updateDoc(doc(db, "users", userId), {
     projectIds: updated
   });
+
+  const projectSnap = await getDoc(doc(db, "projects", currentProjectId));
+  const projectData = projectSnap.exists() ? projectSnap.data() : {};
+  const employeeIds = Array.isArray(projectData.employeeIds) ? projectData.employeeIds : [];
+
+  await updateDoc(doc(db, "projects", currentProjectId), {
+    employeeIds: employeeIds.filter(id => id !== userId)
+  });
+
 
   loadTeamOverview(currentProjectId);
 }
@@ -297,3 +318,4 @@ addEmployeeModal?.addEventListener("click", (e) => {
 if (window.currentProjectId) {
   loadTeamOverview(window.currentProjectId);
 }
+

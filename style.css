@@ -1537,7 +1537,8 @@ body{
   flex:0 0 auto;
 }
 
-.remove-employee-btn{
+.remove-employee-btn,
+.remove-customer-btn{
   padding:6px 10px;
   border-radius:999px;
   border:1px solid rgba(239,68,68,0.28);
@@ -1548,7 +1549,8 @@ body{
   cursor:pointer;
 }
 
-.remove-employee-btn:hover{
+.remove-employee-btn:hover,
+.remove-customer-btn:hover{
   background:rgba(239,68,68,0.18);
 }
 
