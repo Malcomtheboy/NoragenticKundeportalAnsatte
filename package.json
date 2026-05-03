@@ -1,0 +1,15 @@
+{
+  "name": "noragentic-ansattportal",
+  "version": "1.0.0",
+  "description": "Noragentic Ansattportal (Electron app)",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^41.3.0"
+  }
+}
