@@ -11,9 +11,8 @@ import {
   doc,
   setDoc,
   collection,
+  addDoc,
   getDocs,
-  updateDoc,
-  arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -38,17 +37,48 @@ const closeCustomerModal = document.getElementById("closeCustomerModal");
 const cancelCustomerModal = document.getElementById("cancelCustomerModal");
 const saveCustomerBtn = document.getElementById("saveCustomerBtn");
 
+const companyTabBtn = document.getElementById("companyTabBtn");
+const contactTabBtn = document.getElementById("contactTabBtn");
+const companyForm = document.getElementById("companyForm");
+const contactForm = document.getElementById("contactForm");
+
+const companyNameInput = document.getElementById("companyNameInput");
+
 const customerNameInput = document.getElementById("customerNameInput");
 const customerEmailInput = document.getElementById("customerEmailInput");
 const customerPasswordInput = document.getElementById("customerPasswordInput");
-const customerProjectSelect = document.getElementById("customerProjectSelect");
+const customerCompanySelect = document.getElementById("customerCompanySelect");
+const customerModalState = document.getElementById("customerModalState");
 
-async function loadProjectsIntoDropdown() {
-  if (!customerProjectSelect) return;
+let activeMode = "company";
 
-  customerProjectSelect.innerHTML = `<option value="">Velg prosjekt</option>`;
+function setMode(mode) {
+  activeMode = mode;
 
-  const snapshot = await getDocs(collection(db, "projects"));
+  if (mode === "company") {
+    companyTabBtn.classList.add("is-active");
+    contactTabBtn.classList.remove("is-active");
+    companyForm.classList.remove("hidden");
+    contactForm.classList.add("hidden");
+    saveCustomerBtn.textContent = "Opprett firma";
+  } else {
+    contactTabBtn.classList.add("is-active");
+    companyTabBtn.classList.remove("is-active");
+    contactForm.classList.remove("hidden");
+    companyForm.classList.add("hidden");
+    saveCustomerBtn.textContent = "Opprett kontaktperson";
+    loadCompaniesIntoDropdown();
+  }
+
+  customerModalState.textContent = "";
+}
+
+async function loadCompaniesIntoDropdown() {
+  if (!customerCompanySelect) return;
+
+  customerCompanySelect.innerHTML = `<option value="">Velg firma</option>`;
+
+  const snapshot = await getDocs(collection(db, "companies"));
 
   snapshot.forEach((docSnap) => {
     const data = docSnap.data();
@@ -57,24 +87,110 @@ async function loadProjectsIntoDropdown() {
     option.value = docSnap.id;
     option.textContent = data.name || "Uten navn";
 
-    customerProjectSelect.appendChild(option);
+    customerCompanySelect.appendChild(option);
   });
 }
 
-async function openCustomerModal() {
+function openCustomerModal() {
   createCustomerModal.classList.remove("is-hidden");
-  await loadProjectsIntoDropdown();
+  setMode("company");
 }
 
 function closeCustomerModalFn() {
   createCustomerModal.classList.add("is-hidden");
+  clearForms();
 }
 
-function clearCustomerForm() {
-  customerNameInput.value = "";
-  customerEmailInput.value = "";
-  customerPasswordInput.value = "";
-  customerProjectSelect.value = "";
+function clearForms() {
+  if (companyNameInput) companyNameInput.value = "";
+  if (customerNameInput) customerNameInput.value = "";
+  if (customerEmailInput) customerEmailInput.value = "";
+  if (customerPasswordInput) customerPasswordInput.value = "";
+  if (customerCompanySelect) customerCompanySelect.value = "";
+  if (customerModalState) customerModalState.textContent = "";
+}
+
+async function createCompany() {
+  const companyName = companyNameInput.value.trim();
+
+  if (!companyName) {
+    customerModalState.textContent = "Skriv inn firmanavn.";
+    return;
+  }
+
+  saveCustomerBtn.disabled = true;
+  saveCustomerBtn.textContent = "Oppretter...";
+
+  try {
+    await addDoc(collection(db, "companies"), {
+      name: companyName,
+      createdAt: serverTimestamp(),
+      createdBy: localStorage.getItem("employee_uid") || null
+    });
+
+    customerModalState.textContent = "Firma opprettet.";
+    companyNameInput.value = "";
+
+    await loadCompaniesIntoDropdown();
+
+  } catch (error) {
+    console.error("Feil ved oppretting av firma:", error);
+    customerModalState.textContent = "Kunne ikke opprette firma.";
+  } finally {
+    saveCustomerBtn.disabled = false;
+    saveCustomerBtn.textContent = "Opprett firma";
+  }
+}
+
+async function createContactPerson() {
+  const name = customerNameInput.value.trim();
+  const email = customerEmailInput.value.trim();
+  const password = customerPasswordInput.value.trim();
+  const companyId = customerCompanySelect.value;
+
+  if (!name || !email || !password || !companyId) {
+    customerModalState.textContent = "Fyll ut alle feltene.";
+    return;
+  }
+
+  saveCustomerBtn.disabled = true;
+  saveCustomerBtn.textContent = "Oppretter...";
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      secondaryAuth,
+      email,
+      password
+    );
+
+    const customerUser = userCredential.user;
+
+    await setDoc(doc(db, "users", customerUser.uid), {
+      name,
+      email,
+      role: "customer",
+      companyId,
+      projectIds: [],
+      createdAt: serverTimestamp(),
+      createdBy: localStorage.getItem("employee_uid") || null
+    });
+
+    await signOut(secondaryAuth);
+
+    customerModalState.textContent = "Kontaktperson opprettet.";
+
+    customerNameInput.value = "";
+    customerEmailInput.value = "";
+    customerPasswordInput.value = "";
+    customerCompanySelect.value = "";
+
+  } catch (error) {
+    console.error("Feil ved oppretting av kontaktperson:", error);
+    customerModalState.textContent = "Kunne ikke opprette kontaktperson: " + error.message;
+  } finally {
+    saveCustomerBtn.disabled = false;
+    saveCustomerBtn.textContent = "Opprett kontaktperson";
+  }
 }
 
 if (createCustomerBtn) {
@@ -89,6 +205,14 @@ if (cancelCustomerModal) {
   cancelCustomerModal.addEventListener("click", closeCustomerModalFn);
 }
 
+if (companyTabBtn) {
+  companyTabBtn.addEventListener("click", () => setMode("company"));
+}
+
+if (contactTabBtn) {
+  contactTabBtn.addEventListener("click", () => setMode("contact"));
+}
+
 if (createCustomerModal) {
   createCustomerModal.addEventListener("click", (e) => {
     if (e.target === createCustomerModal) {
@@ -99,53 +223,10 @@ if (createCustomerModal) {
 
 if (saveCustomerBtn) {
   saveCustomerBtn.addEventListener("click", async () => {
-    const name = customerNameInput.value.trim();
-    const email = customerEmailInput.value.trim();
-    const password = customerPasswordInput.value.trim();
-    const projectId = customerProjectSelect.value;
-
-    if (!name || !email || !password || !projectId) {
-      alert("Fyll ut alle feltene.");
-      return;
-    }
-
-    try {
-      saveCustomerBtn.disabled = true;
-      saveCustomerBtn.textContent = "Oppretter...";
-
-      const userCredential = await createUserWithEmailAndPassword(
-        secondaryAuth,
-        email,
-        password
-      );
-
-      const customerUser = userCredential.user;
-
-      await setDoc(doc(db, "users", customerUser.uid), {
-        name,
-        email,
-        role: "customer",
-        projectIds: [projectId],
-        createdAt: serverTimestamp()
-      });
-
-      await updateDoc(doc(db, "projects", projectId), {
-        customerIds: arrayUnion(customerUser.uid)
-      });
-
-      await signOut(secondaryAuth);
-
-      alert("Kundekonto opprettet.");
-
-      clearCustomerForm();
-      closeCustomerModalFn();
-
-    } catch (error) {
-      console.error("Feil ved oppretting av kunde:", error);
-      alert("Kunne ikke opprette kunde: " + error.message);
-    } finally {
-      saveCustomerBtn.disabled = false;
-      saveCustomerBtn.textContent = "Opprett kunde";
+    if (activeMode === "company") {
+      await createCompany();
+    } else {
+      await createContactPerson();
     }
   });
 }
