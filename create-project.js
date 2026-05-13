@@ -13,81 +13,76 @@ const saveProjectBtn = document.getElementById("saveProjectBtn");
 
 const projectTitleInput = document.getElementById("projectTitleInput");
 const projectCustomerInput = document.getElementById("projectCustomerInput");
+const projectDescriptionInput = document.getElementById("projectDescriptionInput");
 const projectGoalInput = document.getElementById("projectGoalInput");
 
 function openProjectModal() {
-  createProjectModal.classList.remove("is-hidden");
+  createProjectModal?.classList.remove("is-hidden");
 }
 
 function closeProjectModalFn() {
-  createProjectModal.classList.add("is-hidden");
+  createProjectModal?.classList.add("is-hidden");
 }
 
 function clearProjectForm() {
-  projectTitleInput.value = "";
-  projectCustomerInput.value = "";
-  projectDescriptionInput.value = "";
-  projectGoalInput.value = "";
+  if (projectTitleInput) projectTitleInput.value = "";
+  if (projectCustomerInput) projectCustomerInput.value = "";
+  if (projectDescriptionInput) projectDescriptionInput.value = "";
+  if (projectGoalInput) projectGoalInput.value = "";
 }
 
-if (createProjectBtn) {
-  createProjectBtn.addEventListener("click", openProjectModal);
-}
+createProjectBtn?.addEventListener("click", openProjectModal);
+closeProjectModal?.addEventListener("click", closeProjectModalFn);
+cancelProjectModal?.addEventListener("click", closeProjectModalFn);
 
-if (closeProjectModal) {
-  closeProjectModal.addEventListener("click", closeProjectModalFn);
-}
+createProjectModal?.addEventListener("click", (e) => {
+  if (e.target === createProjectModal) {
+    closeProjectModalFn();
+  }
+});
 
-if (cancelProjectModal) {
-  cancelProjectModal.addEventListener("click", closeProjectModalFn);
-}
+saveProjectBtn?.addEventListener("click", async () => {
+  const title = projectTitleInput?.value.trim();
+  const customer = projectCustomerInput?.value.trim();
+  const description = projectDescriptionInput?.value.trim();
+  const goal = projectGoalInput?.value.trim();
 
-if (createProjectModal) {
-  createProjectModal.addEventListener("click", (e) => {
-    if (e.target === createProjectModal) {
-      closeProjectModalFn();
-    }
-  });
-}
+  if (!title || !customer || !description || !goal) {
+    alert("Fyll ut alle feltene.");
+    return;
+  }
 
-if (saveProjectBtn) {
-  saveProjectBtn.addEventListener("click", async () => {
-    const title = projectTitleInput.value.trim();
-    const customer = projectCustomerInput.value.trim();
-    const goal = projectGoalInput.value.trim();
+  try {
+    saveProjectBtn.disabled = true;
+    saveProjectBtn.textContent = "Oppretter...";
 
-    if (!title || !customer || !goal) {
-      alert("Fyll ut alle feltene.");
-      return;
-    }
+    const docRef = await addDoc(collection(db, "projects"), {
+      name: title,
+      customerName: customer,
+      description: description,
+      goal: goal,
+      goalText: goal,
+      status: "Aktiv",
+      manualProgress: 0,
+      durationDays: 90,
+      createdAt: serverTimestamp(),
+      createdBy: localStorage.getItem("employee_uid") || null,
+      employeeIds: [],
+      customerIds: []
+    });
 
-    try {
-      saveProjectBtn.disabled = true;
-      saveProjectBtn.textContent = "Oppretter...";
+    alert(`Prosjekt opprettet! Prosjekt-ID: ${docRef.id}`);
 
-      const docRef = await addDoc(collection(db, "projects"), {
-        name: title,
-        customerName: customer,
-        description: description,
-        goal: goal,
-        status: "Aktiv",
-        createdAt: serverTimestamp(),
-        createdBy: localStorage.getItem("employee_uid") || null,
-        employeeIds: [],
-        customerIds: []
-      });
+    clearProjectForm();
+    closeProjectModalFn();
 
-      alert(`Prosjekt opprettet! Prosjekt-ID: ${docRef.id}`);
+    window.location.reload();
 
-      clearProjectForm();
-      closeProjectModalFn();
-
-    } catch (error) {
-      console.error("Feil ved oppretting av prosjekt:", error);
-      alert("Kunne ikke opprette prosjekt.");
-    } finally {
-      saveProjectBtn.disabled = false;
-      saveProjectBtn.textContent = "Opprett prosjekt";
-    }
-  });
-}
+  } catch (error) {
+    console.error("Feil ved oppretting av prosjekt:", error);
+    alert("Kunne ikke opprette prosjekt.");
+  } finally {
+    saveProjectBtn.disabled = false;
+    saveProjectBtn.textContent = "Opprett prosjekt";
+  }
+});

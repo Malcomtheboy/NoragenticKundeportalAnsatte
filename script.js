@@ -67,3 +67,58 @@ if (backToLandingBtn) {
     window.location.href = "landing.html";
   });
 }
+
+/* =========================================================
+   VARSLER
+========================================================= */
+function getStoredProjectIds(userId) {
+  const key = `known_project_ids_${userId}`;
+  const stored = localStorage.getItem(key);
+
+  if (!stored) return [];
+
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+function saveCurrentProjectIds(userId, projectIds) {
+  const key = `known_project_ids_${userId}`;
+  localStorage.setItem(key, JSON.stringify(projectIds));
+}
+
+function renderProjectNotifications(userId, projects) {
+  if (!notificationBox || !notificationList) return;
+
+  const currentProjectIds = projects.map(project => project.id);
+  const knownProjectIds = getStoredProjectIds(userId);
+
+  const newProjects = projects.filter(project => {
+    return !knownProjectIds.includes(project.id);
+  });
+
+  if (knownProjectIds.length === 0) {
+    saveCurrentProjectIds(userId, currentProjectIds);
+    notificationBox.classList.add("is-hidden");
+    return;
+  }
+
+  if (newProjects.length === 0) {
+    notificationBox.classList.add("is-hidden");
+    saveCurrentProjectIds(userId, currentProjectIds);
+    return;
+  }
+
+  notificationList.innerHTML = newProjects.map(project => `
+    <div class="notification-item">
+      Du har blitt lagt til i prosjektet
+      <strong>${escapeHtml(project.name || "Uten navn")}</strong>.
+    </div>
+  `).join("");
+
+  notificationBox.classList.remove("is-hidden");
+
+  saveCurrentProjectIds(userId, currentProjectIds);
+}
