@@ -90,10 +90,12 @@ let _state = {
   milestones:          [],
   milestonesDone:      0,
   milestonesTotal:     0,
-  currentMilestone:    "Ikke satt",  // første ikke-fullførte milepæl
+  currentMilestone:    "Ikke satt",
   nextMilestoneDate:   null,
   milestoneRisk:       "low",
   milestoneRiskLabel:  "Lav risiko",
+  // Mohamed – tasks per milepæl: { milestoneId: { total, done } }
+  tasksByMilestone:    {},
 
   latestFileAt:     null,
   latestMessageAt:  null,
@@ -225,6 +227,7 @@ function startLiveAnalytics(projectId) {
     milestones: [], milestonesDone: 0, milestonesTotal: 0,
     currentMilestone: "Ikke satt", nextMilestoneDate: null,
     milestoneRisk: "low", milestoneRiskLabel: "Lav risiko",
+    tasksByMilestone: {},
     latestFileAt: null, latestMessageAt: null, latestProgressAt: null,
     activityLabel: "Lav aktivitet", activityTone: "low",
     summaryText: "Ingen oppsummering tilgjengelig.", alerts: []
@@ -328,6 +331,24 @@ function startLiveAnalytics(projectId) {
       renderWidget();
     },
     (err) => { console.warn("Messages:", err.code); }
+  ));
+
+  /* ---- 4. Tasks – gruppert per milepæl for grønne mini-barer ---- */
+  _unsubs.push(onSnapshot(
+    collection(db, "projects", projectId, "tasks"),
+    (snap) => {
+      const byMs = {};
+      snap.forEach(d => {
+        const t = d.data();
+        const id = t.delmalId || "ukjent";
+        if (!byMs[id]) byMs[id] = { total: 0, done: 0 };
+        byMs[id].total++;
+        if (t.done) byMs[id].done++;
+      });
+      _state.tasksByMilestone = byMs;
+      renderWidget();
+    },
+    (err) => { console.warn("Tasks:", err.code); }
   ));
 }
 
@@ -470,7 +491,32 @@ function renderWidget() {
           summaryText, alerts } = _state;
   const pct = progressPct || 0;
 
-  // Mohamed – milepæl-liste HTML
+  // Mohamed – finn aktiv milepæl (første ikke-fullførte)
+  const activeMilestone = milestones.find(m => !m.done);
+  const activeTasks     = activeMilestone
+    ? (_state.tasksByMilestone?.[activeMilestone.id] || { total: 0, done: 0 })
+    : { total: 0, done: 0 };
+  const activeTaskPct   = activeTasks.total > 0
+    ? Math.round((activeTasks.done / activeTasks.total) * 100)
+    : 0;
+
+  // Mohamed – bar vises alltid, rett over milepæl-lista
+  const activeTaskBar = activeMilestone ? `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;
+                  color:rgba(255,255,255,0.55);margin-bottom:5px">
+        <span>Tasks i <strong style="color:rgba(255,255,255,0.85)">${activeMilestone.title}</strong></span>
+        <span>${activeTasks.done} / ${activeTasks.total > 0 ? activeTasks.total : "0"} (${activeTaskPct}%)</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:999px;height:10px;overflow:hidden">
+        <div style="width:${activeTaskPct}%;height:100%;
+                    background:linear-gradient(90deg,rgba(74,222,128,0.90),rgba(134,239,172,0.95));
+                    border-radius:999px;transition:width 0.7s ease;
+                    box-shadow:0 0 10px rgba(74,222,128,0.45)"></div>
+      </div>
+    </div>` : "";
+
+  // Mohamed – milepæl-liste uten individuelle barer
   const milestonesHtml = milestones.length > 0
     ? milestones.map((m, i) => `
         <div class="milestone-row ${m.done ? 'done' : ''}">
@@ -486,12 +532,6 @@ function renderWidget() {
 
   container.innerHTML = `
     <div class="analytics-widget">
-
-      <!-- Mohamed – milepæler øverst, første ting ansatt ser -->
-      <div class="analytics-milestone-box">
-        <div class="analytics-milestone-title" style="margin-bottom:8px">Milepæler (${milestonesDone}/${milestonesTotal})</div>
-        <div class="analytics-milestone-list">${milestonesHtml}</div>
-      </div>
 
       <p class="analytics-desc">${weekDescription}</p>
 
@@ -509,14 +549,6 @@ function renderWidget() {
           <span class="stat-number">${daysLeft}</span>
           <span class="stat-label">Dager igjen</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-number">${filesThisWeek}</span>
-          <span class="stat-label">Filer denne uken</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-number">${messagesCount}</span>
-          <span class="stat-label">Meldinger denne uken</span>
-        </div>
       </div>
 
       <div class="analytics-grid-2">
@@ -532,6 +564,13 @@ function renderWidget() {
           <div class="analytics-mini-meta">Neste: ${formatDateNo(nextMilestoneDate)}</div>
           <div class="analytics-mini-meta tone-${activityTone}">${activityLabel}</div>
         </div>
+      </div>
+
+      <!-- Mohamed – task-bar rett over milepæl-lista, ingen gap -->
+      ${activeTaskBar}
+      <div class="analytics-milestone-box" style="margin-top:0">
+        <div class="analytics-milestone-title" style="margin-bottom:8px">Milepæler (${milestonesDone}/${milestonesTotal})</div>
+        <div class="analytics-milestone-list">${milestonesHtml}</div>
       </div>
 
       <div class="analytics-chart-wrap">
