@@ -4,7 +4,10 @@ import {
   doc,
   getDoc,
   collection,
-  getDocs
+  getDocs,
+  query,
+  where,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const notificationBox = document.getElementById("notificationBox");
@@ -19,6 +22,13 @@ const hiddenProjectsList = document.getElementById("hiddenProjectsList");
 let allLoadedProjects = [];
 let currentUserId = null;
 
+let chatUnsubscribers = [];
+let initializedChatProjects = new Set();
+let allNotificationsExpanded = false;
+
+/* =========================================================
+   HELPERS
+========================================================= */
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
 
@@ -28,6 +38,15 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function toDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (value.seconds) return new Date(value.seconds * 1000);
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function renderError(message = "Kunne ikke laste prosjekter.") {
@@ -61,7 +80,101 @@ function setWelcomeText() {
 }
 
 /* =========================================================
-   SKJULTE PROSJEKTER
+   RISK / DEADLINE ANALYTICS
+========================================================= */
+function getProjectRisk(project) {
+  const milestones = Array.isArray(project.milestones) ? project.milestones : [];
+  const total = milestones.length;
+  const done = milestones.filter(m => m.done).length;
+
+  const milestoneProgress = total > 0
+    ? Math.round((done / total) * 100)
+    : null;
+
+  const fallbackProgress =
+    typeof project.manualProgress === "number"
+      ? project.manualProgress
+      : typeof project.progress === "number"
+        ? project.progress
+        : 0;
+
+  const progress = milestoneProgress !== null
+    ? milestoneProgress
+    : fallbackProgress;
+
+  const startedAt = toDate(project.startedAt || project.createdAt);
+
+  const durationDays =
+    typeof project.durationDays === "number"
+      ? project.durationDays
+      : 90;
+
+  const daysUsed = startedAt
+    ? Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 86400000))
+    : 0;
+
+  const daysLeft = Math.max(0, durationDays - daysUsed);
+
+  const expectedPct =
+    durationDays > 0
+      ? Math.round((daysUsed / durationDays) * 100)
+      : 0;
+
+  const nextMilestone = milestones.find(m => !m.done);
+  const nextDate = toDate(nextMilestone?.date);
+
+  let daysToNext = null;
+
+  if (nextDate) {
+    daysToNext = Math.ceil((nextDate.getTime() - Date.now()) / 86400000);
+  }
+
+  let risk = "low";
+  let label = "På plan";
+  let message = "Prosjektet ser ut til å være på plan.";
+
+  if (total > 0 && done === total) {
+    risk = "low";
+    label = "Fullført";
+    message = "Alle milepæler er fullført.";
+  } else if (daysToNext !== null && daysToNext <= 0) {
+    risk = "high";
+    label = "Milepæl overskredet";
+    message = "En milepæl er overskredet.";
+  } else if (daysToNext !== null && daysToNext <= 7 && progress < 75) {
+    risk = "high";
+    label = "Høy risiko";
+    message = "Prosjektet nærmer seg frist og ligger i høy risiko.";
+  } else if (daysLeft <= 7 && progress < 100) {
+    risk = "high";
+    label = "Lite tid igjen";
+    message = `Prosjektet har ${daysLeft} dager igjen.`;
+  } else if (daysToNext !== null && daysToNext <= 14 && progress < 50) {
+    risk = "medium";
+    label = "Moderat risiko";
+    message = "Prosjektet nærmer seg frist og bør følges opp.";
+  } else if (progress + 10 < expectedPct) {
+    risk = "medium";
+    label = "Bak skjema";
+    message = "Fremdriften ligger bak forventet nivå basert på tidsbruk.";
+  }
+
+  return {
+    risk,
+    label,
+    message,
+    progress: Math.max(0, Math.min(100, progress)),
+    done,
+    total,
+    daysLeft,
+    daysUsed,
+    expectedPct,
+    nextMilestoneTitle: nextMilestone?.title || ""
+  };
+}
+
+/* =========================================================
+   HIDDEN PROJECTS
 ========================================================= */
 function getHiddenProjects(userId) {
   const key = `hidden_projects_${userId}`;
@@ -91,7 +204,237 @@ function hideProject(userId, projectId) {
 }
 
 /* =========================================================
-   PROSJEKTKORT
+   NOTIFICATIONS
+========================================================= */
+function showNotificationBox() {
+  if (!notificationBox) return;
+  notificationBox.classList.remove("is-hidden");
+}
+
+function updateNotificationVisibility() {
+  if (!notificationList) return;
+
+  const items = [...notificationList.querySelectorAll(".notification-item")];
+  const showMoreBtn = document.getElementById("showMoreNotificationsBtn");
+
+  items.forEach((item, index) => {
+    if (!allNotificationsExpanded && index >= 3) {
+      item.classList.add("is-hidden");
+    } else {
+      item.classList.remove("is-hidden");
+    }
+  });
+
+  if (showMoreBtn) {
+    if (items.length <= 3) {
+      showMoreBtn.remove();
+    } else {
+      showMoreBtn.textContent = allNotificationsExpanded
+        ? "Vis færre"
+        : `Vis flere (${items.length - 3})`;
+    }
+  }
+}
+
+function ensureShowMoreButton() {
+  if (!notificationBox || !notificationList) return;
+
+  const items = notificationList.querySelectorAll(".notification-item");
+  let showMoreBtn = document.getElementById("showMoreNotificationsBtn");
+
+  if (items.length <= 3) {
+    showMoreBtn?.remove();
+    updateNotificationVisibility();
+    return;
+  }
+
+  if (!showMoreBtn) {
+    showMoreBtn = document.createElement("button");
+    showMoreBtn.id = "showMoreNotificationsBtn";
+    showMoreBtn.className = "btn small show-more-notifications-btn";
+    showMoreBtn.type = "button";
+
+    showMoreBtn.addEventListener("click", () => {
+      allNotificationsExpanded = !allNotificationsExpanded;
+      updateNotificationVisibility();
+    });
+
+    notificationBox.appendChild(showMoreBtn);
+  }
+
+  updateNotificationVisibility();
+}
+
+function addNotification(html, extraClass = "") {
+  if (!notificationBox || !notificationList) return;
+
+  showNotificationBox();
+
+  const item = document.createElement("div");
+  item.className = `notification-item ${extraClass}`.trim();
+  item.innerHTML = html;
+
+  notificationList.prepend(item);
+
+  const items = notificationList.querySelectorAll(".notification-item");
+
+  if (items.length > 12) {
+    items[items.length - 1].remove();
+  }
+
+  ensureShowMoreButton();
+}
+
+function getStoredProjectIds(userId) {
+  const key = `known_project_ids_${userId}`;
+  const stored = localStorage.getItem(key);
+
+  if (!stored) return [];
+
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return [];
+  }
+}
+
+function saveCurrentProjectIds(userId, projectIds) {
+  const key = `known_project_ids_${userId}`;
+  localStorage.setItem(key, JSON.stringify(projectIds));
+}
+
+function renderProjectNotifications(userId, allProjects) {
+  const currentProjectIds = allProjects.map(project => project.id);
+  const knownProjectIds = getStoredProjectIds(userId);
+
+  const newProjects = allProjects.filter(project => {
+    return !knownProjectIds.includes(project.id);
+  });
+
+  if (knownProjectIds.length === 0) {
+    saveCurrentProjectIds(userId, currentProjectIds);
+    return;
+  }
+
+  newProjects.forEach(project => {
+    addNotification(`
+      Du har blitt lagt til i prosjektet
+      <strong>${escapeHtml(project.name || "Uten navn")}</strong>.
+    `);
+  });
+
+  saveCurrentProjectIds(userId, currentProjectIds);
+}
+
+function renderDeadlineNotifications(visibleProjects) {
+  const riskyProjects = visibleProjects
+    .map(project => ({
+      project,
+      risk: getProjectRisk(project)
+    }))
+    .filter(item => {
+      if (item.risk.risk !== "high") return false;
+
+      return item.risk.message !== "Fremdriften ligger bak forventet nivå basert på tidsbruk.";
+    });
+
+  riskyProjects.forEach(({ project, risk }) => {
+    const key = `risk_notification_${currentUserId}_${project.id}_${risk.label}`;
+    const alreadyShown = sessionStorage.getItem(key);
+
+    if (alreadyShown) return;
+
+    addNotification(`
+      <strong>${escapeHtml(project.name || "Uten navn")}</strong>:
+      ${escapeHtml(risk.message)}
+    `, `risk-${risk.risk}`);
+
+    sessionStorage.setItem(key, "true");
+  });
+}
+
+/* =========================================================
+   CHAT NOTIFICATIONS
+========================================================= */
+function stopChatNotifications() {
+  chatUnsubscribers.forEach(unsub => unsub());
+  chatUnsubscribers = [];
+  initializedChatProjects = new Set();
+}
+
+function requestNotificationPermission() {
+  if (!("Notification" in window)) return;
+
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function showDesktopNotification(message, project) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  const sender = message.username || message.name || "Ny melding";
+  const projectName = project.name || "Prosjekt";
+
+  new Notification(`${sender} – ${projectName}`, {
+    body: message.text || "Du har fått en ny melding."
+  });
+}
+
+function renderChatNotification(message, project) {
+  const sender = message.username || message.name || "Ukjent bruker";
+  const text = message.text || "";
+  const projectName = project.name || "Uten navn";
+
+  addNotification(`
+    <div>
+      Ny melding i <strong>${escapeHtml(projectName)}</strong>
+    </div>
+    <div class="notification-preview">
+      <strong>${escapeHtml(sender)}:</strong> ${escapeHtml(text)}
+    </div>
+  `, "chat-notification");
+}
+
+function startChatNotifications(visibleProjects, userId) {
+  stopChatNotifications();
+
+  visibleProjects.forEach(project => {
+    const messagesQuery = query(
+      collection(db, "messages"),
+      where("projectId", "==", project.id)
+    );
+
+    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      const projectInitialized = initializedChatProjects.has(project.id);
+
+      snapshot.docChanges().forEach(change => {
+        if (change.type !== "added") return;
+
+        const message = {
+          id: change.doc.id,
+          ...change.doc.data()
+        };
+
+        if (!projectInitialized) return;
+        if (message.uid === userId) return;
+
+        renderChatNotification(message, project);
+        showDesktopNotification(message, project);
+      });
+
+      initializedChatProjects.add(project.id);
+    }, (error) => {
+      console.warn("Kunne ikke lytte på chat-varsler:", error);
+    });
+
+    chatUnsubscribers.push(unsubscribe);
+  });
+}
+
+/* =========================================================
+   PROJECT CARDS
 ========================================================= */
 function renderProjects(projects, userId) {
   if (!landingProjectsGrid) return;
@@ -102,17 +445,11 @@ function renderProjects(projects, userId) {
   }
 
   landingProjectsGrid.innerHTML = projects.map(project => {
-    const progress =
-      typeof project.manualProgress === "number"
-        ? project.manualProgress
-        : typeof project.progress === "number"
-          ? project.progress
-          : 0;
-
-    const safeProgress = Math.max(0, Math.min(100, progress));
+    const projectRisk = getProjectRisk(project);
+    const safeProgress = projectRisk.progress;
 
     return `
-      <div class="landing-project-card card fade-in" data-project-id="${escapeHtml(project.id)}">
+      <div class="landing-project-card card fade-in risk-${projectRisk.risk}" data-project-id="${escapeHtml(project.id)}">
         <div class="landing-project-top">
           <div>
             <div class="landing-project-title">
@@ -132,8 +469,18 @@ function renderProjects(projects, userId) {
           ${escapeHtml(project.description || project.goal || project.goalText || "Ingen beskrivelse lagt inn.")}
         </div>
 
+        <div class="landing-risk-badge risk-${projectRisk.risk}">
+          ${escapeHtml(projectRisk.label)}
+          ${
+            projectRisk.total > 0
+              ? ` · ${projectRisk.done}/${projectRisk.total} milepæler`
+              : ""
+          }
+          · ${projectRisk.daysLeft} dager igjen
+        </div>
+
         <div class="landing-project-bar">
-          <div class="landing-project-bar-fill" style="width:${safeProgress}%"></div>
+          <div class="landing-project-bar-fill risk-${projectRisk.risk}" style="width:${safeProgress}%"></div>
         </div>
 
         <div class="landing-project-bottom">
@@ -165,87 +512,26 @@ function renderProjects(projects, userId) {
       const projectId = btn.dataset.projectId;
       hideProject(userId, projectId);
 
-    const card = btn.closest(".landing-project-card");
+      const card = btn.closest(".landing-project-card");
 
-    if (card) {
-      card.classList.add("fade-out");
+      if (card) {
+        card.classList.add("fade-out");
 
-      setTimeout(() => {
-        card.remove();
+        setTimeout(() => {
+          card.remove();
 
-        const remaining = landingProjectsGrid.querySelectorAll(".landing-project-card");
-        if (remaining.length === 0) {
-          renderEmpty("Alle prosjekter er skjult.");
-        }
-      }, 200);
-    }
-
-      const remainingCards = landingProjectsGrid.querySelectorAll(".landing-project-card");
-
-      if (remainingCards.length === 0) {
-        renderEmpty("Alle prosjekter er skjult.");
+          const remaining = landingProjectsGrid.querySelectorAll(".landing-project-card");
+          if (remaining.length === 0) {
+            renderEmpty("Alle prosjekter er skjult.");
+          }
+        }, 200);
       }
     });
   });
 }
 
 /* =========================================================
-   VARSLER
-========================================================= */
-function getStoredProjectIds(userId) {
-  const key = `known_project_ids_${userId}`;
-  const stored = localStorage.getItem(key);
-
-  if (!stored) return [];
-
-  try {
-    return JSON.parse(stored);
-  } catch {
-    return [];
-  }
-}
-
-function saveCurrentProjectIds(userId, projectIds) {
-  const key = `known_project_ids_${userId}`;
-  localStorage.setItem(key, JSON.stringify(projectIds));
-}
-
-function renderProjectNotifications(userId, projects) {
-  if (!notificationBox || !notificationList) return;
-
-  const currentProjectIds = projects.map(project => project.id);
-  const knownProjectIds = getStoredProjectIds(userId);
-
-  const newProjects = projects.filter(project => {
-    return !knownProjectIds.includes(project.id);
-  });
-
-  if (knownProjectIds.length === 0) {
-    saveCurrentProjectIds(userId, currentProjectIds);
-    notificationBox.classList.add("is-hidden");
-    return;
-  }
-
-  if (newProjects.length === 0) {
-    notificationBox.classList.add("is-hidden");
-    saveCurrentProjectIds(userId, currentProjectIds);
-    return;
-  }
-
-  notificationList.innerHTML = newProjects.map(project => `
-    <div class="notification-item">
-      Du har blitt lagt til i prosjektet
-      <strong>${escapeHtml(project.name || "Uten navn")}</strong>.
-    </div>
-  `).join("");
-
-  notificationBox.classList.remove("is-hidden");
-
-  saveCurrentProjectIds(userId, currentProjectIds);
-}
-
-/* =========================================================
-   LAST PROSJEKTER
+   LOAD PROJECTS
 ========================================================= */
 async function loadProjectsForUser(user) {
   const userSnap = await getDoc(doc(db, "users", user.uid));
@@ -291,17 +577,24 @@ async function loadProjectsForUser(user) {
     renderEmpty();
     return;
   }
+
   currentUserId = user.uid;
   allLoadedProjects = projects;
-  renderProjectNotifications(user.uid, projects);
 
   const hiddenProjects = getHiddenProjects(user.uid);
   const visibleProjects = projects.filter(project => {
     return !hiddenProjects.includes(project.id);
   });
 
+  renderProjectNotifications(user.uid, projects);
+  renderDeadlineNotifications(visibleProjects);
+  startChatNotifications(visibleProjects, user.uid);
   renderProjects(visibleProjects, user.uid);
 }
+
+/* =========================================================
+   HIDDEN PROJECTS MODAL
+========================================================= */
 function renderHiddenProjectsModal() {
   if (!hiddenProjectsList || !currentUserId) return;
 
@@ -341,7 +634,10 @@ function renderHiddenProjectsModal() {
         !hiddenIds.includes(project.id)
       );
 
+      stopChatNotifications();
       renderProjects(visibleProjects, currentUserId);
+      renderDeadlineNotifications(visibleProjects);
+      startChatNotifications(visibleProjects, currentUserId);
       renderHiddenProjectsModal();
     });
   });
@@ -382,11 +678,13 @@ if (hiddenProjectsModal) {
 ========================================================= */
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    stopChatNotifications();
     window.location.href = "login.html";
     return;
   }
 
   setWelcomeText();
+  requestNotificationPermission();
 
   try {
     await loadProjectsForUser(user);

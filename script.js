@@ -55,3 +55,15 @@ if (editBtn) {
     }
   });
 }
+
+/* =========================================================
+   TILBAKE TIL LANDINGSSIDE @aslak
+========================================================= */
+
+const backToLandingBtn = document.getElementById("backToLandingBtn");
+
+if (backToLandingBtn) {
+  backToLandingBtn.addEventListener("click", () => {
+    window.location.href = "landing.html";
+  });
+}

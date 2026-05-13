@@ -10,21 +10,29 @@
   <div class="bg"></div>
 
   <header class="topbar">
-    <div class="logo">N</div>
+    <div class="topbar-left">
+      <div class="logo">N</div>
+
+      <button
+        id="backToLandingBtn"
+        class="back-to-landing-btn"
+        type="button"
+      >
+        ← Landing
+      </button>
+    </div>
     <nav class="project-tabs hidden" id="projectTabs"></nav>
 
     <div class="topbar-actions">
       <button class="btn small hidden" id="createProjectBtn">+ Prosjekt</button>
-      <button class="btn small hidden" id="createCustomerBtn">+ Firma/kunde</button>
+      <button class="btn small hidden" id="createCustomerBtn">+ Kunde</button>
       <button class="btn small hidden" id="createEmployeeBtn">+ Ansatt</button>
       <button class="btn small" id="logoutBtn" type="button">Logg ut</button>
     </div>
   </header>
 
   <main class="wrap">
-
     <section class="hero">
-
       <div class="card small">
         <div class="label">Valgt prosjekt</div>
         <div id="projectSelectorContainer"></div>
@@ -38,25 +46,21 @@
           </div>
           <div class="hero-right">
             <div class="hero-pct-badge" id="heroProgressPct">0%</div>
-            <!-- ✏️ fjernet herfra -->
           </div>
         </div>
         <div class="hero-bar-track">
           <div class="hero-bar-fill" id="heroProgressBar" style="width:0%"></div>
         </div>
       </div>
-
     </section>
 
     <section class="dashboard">
-
       <div class="left-column">
-
         <section class="panel card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div class="section-title" style="margin-bottom:0">Ukesstatus</div>
             <button id="heroEditBtn" title="Rediger prosjekt"
-                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer;color:rgba(255,255,255,0.85)">✏️</button>
+              style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer;color:rgba(255,255,255,0.85)">✏️</button>
           </div>
           <p class="section-description">Ukentlig fremdrift og statistikk – oppdateres i sanntid.</p>
           <div id="weekPlaceholder">
@@ -95,11 +99,9 @@
             <div id="contentsList" class="loading-state">Laster...</div>
           </div>
         </section>
-
       </div>
 
       <div class="right-column">
-
         <section class="panel card">
           <div class="team-header">
             <div>
@@ -117,13 +119,25 @@
               <div class="team-modal-title">Legg til ansatt</div>
               <button id="closeEmployeeModalBtn" class="team-modal-close" type="button">✕</button>
             </div>
+
             <div class="team-modal-body">
-              <p class="team-modal-text">Velg en ansatt som skal kobles til valgt prosjekt.</p>
+              <p class="team-modal-text">Søk etter en ansatt som skal kobles til valgt prosjekt.</p>
+
+              <input
+                id="employeeSearchInput"
+                class="team-search-input"
+                type="text"
+                placeholder="Søk etter navn eller e-post..."
+                autocomplete="off"
+              />
+
               <select id="employeeSelect" class="team-select">
                 <option value="">Velg ansatt</option>
               </select>
+
               <div id="employeeModalState" class="team-modal-state"></div>
             </div>
+
             <div class="team-modal-footer">
               <button id="cancelEmployeeModalBtn" class="btn" type="button">Avbryt</button>
               <button id="saveEmployeeBtn" class="btn primary" type="button">Legg til</button>
@@ -131,7 +145,7 @@
           </div>
         </div>
 
-                <section class="panel card">
+        <section class="panel card">
           <div class="team-header">
             <div>
               <div class="section-title">Kunder på prosjekt</div>
@@ -150,7 +164,7 @@
             </div>
             <div class="team-modal-body">
               <p class="team-modal-text">Velg en kunde som skal kobles til valgt prosjekt.</p>
-                            <select id="customerProjectSelectModal" class="team-select">
+              <select id="customerProjectSelectModal" class="team-select">
                 <option value="">Velg kunde</option>
               </select>
               <div id="customerProjectModalState" class="team-modal-state"></div>
@@ -161,8 +175,6 @@
             </div>
           </div>
         </div>
-
-
 
         <section class="panel card">
           <div class="section-title">Prosjektbeskrivelse</div>
@@ -191,7 +203,6 @@
             </form>
           </div>
         </section>
-
       </div>
     </section>
   </main>
@@ -215,7 +226,7 @@
       <div class="center-head">
         <div class="center-title">Opprett prosjekt</div>
         <button class="x" id="closeProjectModal">✕</button>
-      </div>   
+      </div>
       <div class="center-body">
         <label class="field"><div class="field-label">Prosjektnavn</div><input id="projectTitleInput" type="text" placeholder="F.eks. Ny kundeportal" /></label>
         <label class="field"><div class="field-label">Kundenavn / firma</div><input id="projectCustomerInput" type="text" placeholder="F.eks. Firma AS" /></label>
@@ -230,66 +241,25 @@
     </div>
   </div>
 
-<div class="modal-center is-hidden" id="createCustomerModal">
-  <div class="center-card">
-    <div class="center-head">
-      <div class="center-title">Opprett firma / kunde</div>
-      <button class="x" id="closeCustomerModal">✕</button>
-    </div>
-
-    <div class="center-body">
-
-      <div class="customer-type-tabs">
-        <button class="customer-type-tab is-active" id="companyTabBtn" type="button">Firma</button>
-        <button class="customer-type-tab" id="contactTabBtn" type="button">Kontaktperson</button>
+  <div class="modal-center is-hidden" id="createCustomerModal">
+    <div class="center-card">
+      <div class="center-head">
+        <div class="center-title">Opprett kundekonto</div>
+        <button class="x" id="closeCustomerModal">✕</button>
       </div>
-
-      <div id="companyForm">
-        <label class="field">
-          <div class="field-label">Firmanavn</div>
-          <input id="companyNameInput" type="text" placeholder="F.eks. Firma AS" />
-        </label>
-
-        <p class="small-note">
-          Firmaet lagres i Firestore og kan senere kobles til kontaktpersoner.
-        </p>
+      <div class="center-body">
+        <label class="field"><div class="field-label">Kundenavn</div><input id="customerNameInput" type="text" placeholder="F.eks. Firma AS" /></label>
+        <label class="field"><div class="field-label">E-post</div><input id="customerEmailInput" type="email" placeholder="kunde@firma.no" /></label>
+        <label class="field"><div class="field-label">Passord</div><input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" /></label>
+        <label class="field"><div class="field-label">Prosjekt-ID</div><select id="customerProjectSelect"></select></label>
+        <p class="small-note">Denne brukeren opprettes i Firebase Authentication og lagres deretter i Firestore med rollen customer.</p>
       </div>
-
-      <div id="contactForm" class="hidden">
-        <label class="field">
-          <div class="field-label">Navn</div>
-          <input id="customerNameInput" type="text" placeholder="F.eks. Ola Nordmann" />
-        </label>
-
-        <label class="field">
-          <div class="field-label">E-post</div>
-          <input id="customerEmailInput" type="email" placeholder="kunde@firma.no" />
-        </label>
-
-        <label class="field">
-          <div class="field-label">Passord</div>
-          <input id="customerPasswordInput" type="text" placeholder="Midlertidig passord" />
-        </label>
-
-        <label class="field">
-          <div class="field-label">Firma</div>
-          <select id="customerCompanySelect"></select>
-        </label>
-
-        <p class="small-note">
-          Kontaktpersonen opprettes i Firebase Authentication og kobles til valgt firma.
-        </p>
+      <div class="center-foot">
+        <button class="btn" id="cancelCustomerModal">Avbryt</button>
+        <button class="btn primary" id="saveCustomerBtn">Opprett kunde</button>
       </div>
-
-      <div id="customerModalState" class="team-modal-state"></div>
-    </div>
-
-    <div class="center-foot">
-      <button class="btn" id="cancelCustomerModal">Avbryt</button>
-      <button class="btn primary" id="saveCustomerBtn">Opprett firma</button>
     </div>
   </div>
-</div>
 
   <div class="modal-center is-hidden" id="createEmployeeModal">
     <div class="center-card">
@@ -321,6 +291,5 @@
   <script type="module" src="tasks.js"></script>
   <script type="module" src="project.js"></script>
   <script type="module" src="customer-overview.js"></script>
-
 </body>
 </html>

@@ -39,6 +39,35 @@ body{
   padding:0 18px;
   gap:16px;
 }
+/* =========================================================
+   TOPBAR LEFT
+========================================================= */
+
+.topbar-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.back-to-landing-btn{
+  height:38px;
+  padding:0 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.88);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition:all .18s ease;
+  backdrop-filter:blur(10px);
+}
+
+.back-to-landing-btn:hover{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.22);
+  transform:translateY(-1px);
+}
 
 .logo{
   width:34px;
@@ -264,7 +293,47 @@ body{
 
 }
 
+/* =========================================================
+   TASK MILESTONE SELECT
+========================================================= */
 
+#milestoneSelectorWrap{
+  margin-bottom:14px;
+}
+
+#milestoneSelector{
+  width:100%;
+  height:48px;
+  padding:0 14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(15,23,42,0.72);
+  color:rgba(255,255,255,0.94);
+  font-size:14px;
+  font-weight:600;
+  outline:none;
+  backdrop-filter:blur(14px);
+  transition:
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease,
+    transform .12s ease;
+}
+
+#milestoneSelector:hover{
+  border-color:rgba(255,255,255,0.24);
+  background:rgba(20,30,54,0.82);
+}
+
+#milestoneSelector:focus{
+  border-color:rgba(126,162,255,0.65);
+  box-shadow:0 0 0 4px rgba(126,162,255,0.14);
+}
+
+#milestoneSelector option{
+  background:#111827;
+  color:#ffffff;
+}
 
 
 .placeholder-box{
@@ -2036,6 +2105,89 @@ body{
 
 .notification-item strong{
   color:white;
+}
+/* =========================================================
+   LANDING RISK / DEADLINE ALERTS
+========================================================= */
+
+.landing-risk-badge{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  margin:10px 0 12px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.2;
+}
+
+.landing-risk-badge.risk-low{
+  background:rgba(74,222,128,0.14);
+  border:1px solid rgba(74,222,128,0.28);
+  color:#bbf7d0;
+}
+
+.landing-risk-badge.risk-medium{
+  background:rgba(251,191,36,0.16);
+  border:1px solid rgba(251,191,36,0.36);
+  color:#fde68a;
+}
+
+.landing-risk-badge.risk-high{
+  background:rgba(239,68,68,0.18);
+  border:1px solid rgba(239,68,68,0.40);
+  color:#fecaca;
+}
+
+.landing-project-card.risk-medium{
+  border:1px solid rgba(251,191,36,0.35);
+}
+
+.landing-project-card.risk-high{
+  border:1px solid rgba(239,68,68,0.48);
+  box-shadow:0 0 24px rgba(239,68,68,0.18);
+}
+
+.landing-project-bar-fill.risk-low{
+  background:linear-gradient(90deg, #22c55e, #86efac);
+}
+
+.landing-project-bar-fill.risk-medium{
+  background:linear-gradient(90deg, #f59e0b, #fde68a);
+}
+
+.landing-project-bar-fill.risk-high{
+  background:linear-gradient(90deg, #ef4444, #fecaca);
+}
+
+.notification-preview{
+  margin-top:4px;
+  color:rgba(255,255,255,0.78);
+}
+
+.notification-item.risk-medium{
+  border:1px solid rgba(251,191,36,0.30);
+  background:rgba(251,191,36,0.10);
+}
+
+.notification-item.risk-high{
+  border:1px solid rgba(239,68,68,0.35);
+  background:rgba(239,68,68,0.12);
+}
+
+.notification-item.chat-notification{
+  border:1px solid rgba(96,165,250,0.30);
+  background:rgba(96,165,250,0.10);
+}
+
+.notification-item.is-hidden{
+  display:none;
+}
+
+.show-more-notifications-btn{
+  margin-top:10px;
 }
 
 .is-hidden{
