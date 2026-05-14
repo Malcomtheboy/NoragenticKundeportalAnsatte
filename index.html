@@ -41,7 +41,8 @@
       <div class="card wide">
         <div class="hero-top-row">
           <div class="hero-goal-block">
-            <div class="label">Nåværende delmål:</div>
+            <!-- Mohamed – byttet fra "Nåværende delmål:" til milepæl-teller -->
+            <div class="label">Milepæler fullført:</div>
             <div class="big" id="projectGoal">Her kan prosjektets aktive delmål vises</div>
           </div>
           <div class="hero-right">
@@ -58,11 +59,14 @@
       <div class="left-column">
         <section class="panel card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <div class="section-title" style="margin-bottom:0">Ukesstatus</div>
+            <!-- Mohamed – byttet "Ukesstatus" til "Prosjektanalyse" -->
+            <div class="section-title" style="margin-bottom:0">Prosjektanalyse</div>
+            <!-- Mohamed – byttet fra ✏️ emoji til tekst-knapp -->
             <button id="heroEditBtn" title="Rediger prosjekt"
-              style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer;color:rgba(255,255,255,0.85)">✏️</button>
+              style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.85);letter-spacing:0.04em">Rediger</button>
           </div>
-          <p class="section-description">Ukentlig fremdrift og statistikk – oppdateres i sanntid.</p>
+          <!-- Mohamed – oppdatert beskrivelse -->
+          <p class="section-description">Milepæler, oppgaver og fremdrift – oppdateres i sanntid.</p>
           <div id="weekPlaceholder">
             <div class="analytics-loading">
               <div class="analytics-spinner"></div>
@@ -72,12 +76,13 @@
         </section>
 
         <section class="panel card">
-          <div class="section-title" id="taskSectionTitle">Tasks (0/0 ferdig)</div>
-          <p class="section-description">Tasks koblet til aktivt delmål.</p>
+          <!-- Mohamed – byttet "Tasks" til "Oppgaver" -->
+          <div class="section-title" id="taskSectionTitle">Oppgaver (0/0 ferdig)</div>
+          <p class="section-description">Oppgaver koblet til aktiv milepæl.</p>
           <div class="task-box">
             <div class="task-input-row">
-              <input id="taskInput" type="text" placeholder="Ny task..." />
-              <button id="addTaskBtn" class="btn" type="button">Legg til task</button>
+              <input id="taskInput" type="text" placeholder="Ny oppgave..." />
+              <button id="addTaskBtn" class="btn" type="button">Legg til oppgave</button>
               <button id="toggleDoneBtn" class="btn small" type="button">Vis fullførte</button>
               <button id="clearDoneBtn" class="btn small" type="button">Fjern fullførte</button>
             </div>
