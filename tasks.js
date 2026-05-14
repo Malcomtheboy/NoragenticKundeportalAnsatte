@@ -53,7 +53,7 @@ function renderMilestoneSelector(milestones) {
   }
 
   const options = milestones.length === 0
-    ? `<option value="">Ingen milepæler – legg til i ✏️</option>`
+    ? `<option value="">Ingen milepæler – legg til via Rediger</option>`
     : milestones.map(m =>
         `<option value="${m.id}" ${m.id === activeMilestoneId ? "selected" : ""}>
           ${m.done ? "✓ Fullført –" : "○ Aktiv –"} ${m.title}
@@ -63,7 +63,7 @@ function renderMilestoneSelector(milestones) {
   wrap.innerHTML = `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;
                 letter-spacing:.05em;color:rgba(255,255,255,0.50);margin-bottom:6px">
-      Legg til task til milepæl:
+      Legg til oppgave til milepæl:
     </div>
     <select id="milestoneSelector" style="
       width:100%; padding:8px 10px; border-radius:10px;
@@ -107,7 +107,7 @@ function renderTaskProgressBar(done, total) {
   barWrap.innerHTML = `
     <div style="display:flex;justify-content:space-between;font-size:11px;
                 color:rgba(255,255,255,0.55);margin-bottom:4px">
-      <span>Tasks fullført</span>
+      <span>Oppgaver fullført</span>
       <span>${done} / ${total} (${pct}%)</span>
     </div>
     <div style="background:rgba(255,255,255,0.08);border-radius:999px;height:6px;overflow:hidden">
@@ -160,7 +160,7 @@ function renderTasks(snapshot) {
   });
 
   if (taskSectionTitle) {
-    taskSectionTitle.textContent = `Tasks (${doneCount}/${total} ferdig)`;
+    taskSectionTitle.textContent = `Oppgaver (${doneCount}/${total} ferdig)`;
   }
 
   renderTaskProgressBar(doneCount, total);
@@ -258,7 +258,7 @@ async function addTask() {
   if (!activeMilestoneId) { alert("Velg en milepæl først"); return; }
 
   const title = taskInput?.value.trim();
-  if (!title) { alert("Skriv task-navn først"); return; }
+  if (!title) { alert("Skriv oppgavenavn først"); return; }
 
   try {
     await addDoc(collection(db, "projects", projectId, "tasks"), {

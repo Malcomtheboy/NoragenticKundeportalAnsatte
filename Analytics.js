@@ -1,21 +1,9 @@
 // Mohamed – Analytics.js (ansattportal)
-// ENDRINGER FRA FORRIGE VERSJON:
-//   1. Progress beregnes AUTOMATISK fra fullførte milepæler (ikke manuell slider)
-//   2. Filer hentes uten compound index – filtreres lokalt i JS
-//   3. Graf viser ekte daglig filaktivitet
-//   4. Milepæler: legg til opptil mange, progress = done/total * 100
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  setDoc,
-  serverTimestamp,
-  Timestamp
+  getFirestore, collection, query, where,
+  onSnapshot, doc, setDoc, serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -53,11 +41,24 @@ function getTodayWeekIndex() {
   return new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
 }
 
+// Mohamed – daglig snapshot-nøkkel
+function getTodayKey() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
+}
+
 function formatDateNo(dateLike) {
   if (!dateLike) return "Ikke satt";
   const date = dateLike?.toDate ? dateLike.toDate() : new Date(dateLike);
   if (Number.isNaN(date.getTime())) return "Ikke satt";
   return date.toLocaleDateString("no-NO");
+}
+
+// Mohamed – kortformat dato for graf: "29.4"
+function fmtD(date) {
+  if (!date) return "";
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  return `${d.getDate()}.${d.getMonth()+1}`;
 }
 
 function daysSince(dateLike) {
@@ -71,22 +72,16 @@ function daysSince(dateLike) {
    STATE
 ========================================================= */
 let _state = {
-  // Mohamed – progress er nå AUTO-BEREGNET fra milepæler, ikke manuell
-  progressPct:     0,
-  weekDescription: "Ingen ukesnotat lagt inn ennå.",
-  goalText:        "Her kan prosjektets aktive delmål vises",
-  startedAt:       null,
-  daysUsed:        0,
-  durationDays:    90,
-  daysLeft:        90,
-
-  totalFiles:      0,
-  filesThisWeek:   0,
-  messagesCount:   0,
+  progressPct:      0,
+  goalText:         "Her kan prosjektets aktive delmål vises",
+  startedAt:        null,
+  daysUsed:         0,
+  durationDays:     90,
+  daysLeft:         90,
+  totalFiles:       0,
+  filesThisWeek:    0,
+  messagesCount:    0,
   weeklyFileCounts: [0,0,0,0,0,0,0],
-
-  // Mohamed – milepæler er nå en LISTE (ikke bare én)
-  // Firestore: projects/{id}.milestones = [{id, title, done, date}]
   milestones:          [],
   milestonesDone:      0,
   milestonesTotal:     0,
@@ -96,19 +91,19 @@ let _state = {
   milestoneRiskLabel:  "Lav risiko",
   // Mohamed – tasks per milepæl: { milestoneId: { total, done } }
   tasksByMilestone:    {},
-
   latestFileAt:     null,
   latestMessageAt:  null,
   latestProgressAt: null,
-
-  activityLabel: "Lav aktivitet",
-  activityTone:  "low",
-  summaryText:   "Ingen oppsummering tilgjengelig.",
-  alerts:        []
+  activityLabel:    "Lav aktivitet",
+  activityTone:     "low",
+  summaryText:      "Ingen oppsummering tilgjengelig.",
+  alerts:           []
 };
 
 let _unsubs = [];
 let _currentProjectId = null;
+let _lastAutoSnapshotKey = null; // Mohamed – unngå dobbel-skriving per dag
+
 function stopAll() { _unsubs.forEach(u => u()); _unsubs = []; }
 
 /* =========================================================
@@ -118,22 +113,18 @@ function stopAll() { _unsubs.forEach(u => u()); _unsubs = []; }
 function recomputeDerivedState() {
   _state.daysLeft = Math.max(0, (_state.durationDays || 0) - (_state.daysUsed || 0));
 
-  // Mohamed – AUTO progress fra milepæler
   const milestones = Array.isArray(_state.milestones) ? _state.milestones : [];
   const total      = milestones.length;
   const done       = milestones.filter(m => m.done).length;
 
-  _state.milestonesTotal  = total;
-  _state.milestonesDone   = done;
-  // Progresjons-% = fullførte / totale milepæler * 100
-  _state.progressPct      = total > 0 ? Math.round((done / total) * 100) : 0;
+  _state.milestonesTotal = total;
+  _state.milestonesDone  = done;
+  _state.progressPct     = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  // Finn neste ufullendte milepæl
   const next = milestones.find(m => !m.done);
-  _state.currentMilestone  = next?.title  || (total > 0 ? "Alle milepæler fullført ✓" : "Ingen milepæler");
-  _state.nextMilestoneDate = next?.date   || null;
+  _state.currentMilestone  = next?.title || (total > 0 ? "Alle milepæler fullført ✓" : "Ingen milepæler");
+  _state.nextMilestoneDate = next?.date  || null;
 
-  // Mohamed – risikovurdering mot neste milepæl-dato
   let daysToNext = null;
   if (_state.nextMilestoneDate) {
     const mDate = _state.nextMilestoneDate?.toDate
@@ -161,25 +152,15 @@ function recomputeDerivedState() {
     _state.milestoneRiskLabel = "Lav risiko";
   }
 
-  // Aktivitetsnivå
   const filesThisWeek    = _state.filesThisWeek  || 0;
   const messagesThisWeek = _state.messagesCount   || 0;
   const activityScore    = filesThisWeek + messagesThisWeek;
 
-  if (activityScore >= 8) {
-    _state.activityLabel = "Høy aktivitet";
-    _state.activityTone  = "high";
-  } else if (activityScore >= 3) {
-    _state.activityLabel = "Moderat aktivitet";
-    _state.activityTone  = "medium";
-  } else {
-    _state.activityLabel = "Lav aktivitet";
-    _state.activityTone  = "low";
-  }
+  if (activityScore >= 8)      { _state.activityLabel = "Høy aktivitet";     _state.activityTone = "high"; }
+  else if (activityScore >= 3) { _state.activityLabel = "Moderat aktivitet"; _state.activityTone = "medium"; }
+  else                         { _state.activityLabel = "Lav aktivitet";     _state.activityTone = "low"; }
 
-  // Varsler
   const alerts = [];
-
   if (messagesThisWeek === 0) alerts.push("Ingen nye meldinger denne uken.");
   if (filesThisWeek    === 0) alerts.push("Ingen nye filer denne uken.");
 
@@ -187,11 +168,10 @@ function recomputeDerivedState() {
     ? Math.round((_state.daysUsed / _state.durationDays) * 100) : 0;
   if (pct + 10 < expectedPct) alerts.push("Fremdriften ligger bak forventet nivå basert på tidsbruk.");
 
-  if (_state.milestoneRisk === "high" && done < total) {
+  if (_state.milestoneRisk === "high" && done < total)
     alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
-  } else if (_state.milestoneRisk === "medium") {
+  else if (_state.milestoneRisk === "medium")
     alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
-  }
 
   const noFilesDays    = daysSince(_state.latestFileAt);
   const noMsgDays      = daysSince(_state.latestMessageAt);
@@ -202,12 +182,12 @@ function recomputeDerivedState() {
 
   _state.alerts = alerts;
 
+  // Mohamed – fjernet "X meldinger sendt" fra oppsummeringen
   _state.summaryText = [
     `Prosjektet er ${pct}% ferdig (${done} av ${total} milepæler fullført).`,
     `${_state.daysUsed} dager er brukt og ${_state.daysLeft} dager gjenstår.`,
     `Aktivitetsnivået denne uken er ${_state.activityLabel.toLowerCase()}.`,
-    filesThisWeek    > 0 ? `${filesThisWeek} nye filer lastet opp.`     : "",
-    messagesThisWeek > 0 ? `${messagesThisWeek} meldinger sendt.`       : ""
+    filesThisWeek > 0 ? `${filesThisWeek} nye filer lastet opp.` : ""
   ].filter(Boolean).join(" ");
 }
 
@@ -219,8 +199,7 @@ function startLiveAnalytics(projectId) {
   _currentProjectId = projectId;
 
   _state = {
-    progressPct: 0, weekDescription: "Ingen ukesnotat lagt inn ennå.",
-    goalText: "Her kan prosjektets aktive delmål vises",
+    progressPct: 0, goalText: "Her kan prosjektets aktive delmål vises",
     startedAt: null, daysUsed: 0, durationDays: 90, daysLeft: 90,
     totalFiles: 0, filesThisWeek: 0, messagesCount: 0,
     weeklyFileCounts: [0,0,0,0,0,0,0],
@@ -241,33 +220,42 @@ function startLiveAnalytics(projectId) {
     (snap) => {
       if (snap.exists()) {
         const d = snap.data();
-
         if (d.startedAt?.toDate) {
           _state.startedAt = d.startedAt.toDate();
           _state.daysUsed  = Math.max(0,
             Math.floor((Date.now() - _state.startedAt.getTime()) / 86400000)
           );
         }
-        if (typeof d.durationDays === "number") _state.durationDays  = d.durationDays;
-        if (d.weekNote)  _state.weekDescription = d.weekNote;
-        if (d.goalText)  _state.goalText         = d.goalText;
-
+        if (typeof d.durationDays === "number") _state.durationDays = d.durationDays;
+        if (d.goalText) _state.goalText = d.goalText;
         // Mohamed – milestones-array styrer alt
-        _state.milestones    = Array.isArray(d.milestones)    ? d.milestones    : [];
+        _state.milestones       = Array.isArray(d.milestones) ? d.milestones : [];
         _state.latestProgressAt = d.updatedAt?.toDate?.() || d.createdAt?.toDate?.() || null;
       }
 
-      // Oppdater delmål i hero med nåværende milepæl
       recomputeDerivedState();
+
+      // Mohamed – oppdater hero med milepæl-fremgang istedet for delmål-tekst
       const goalEl = document.getElementById("projectGoal");
-      if (goalEl) goalEl.textContent = _state.currentMilestone;
+      if (goalEl) goalEl.textContent = `${_state.milestonesDone} av ${_state.milestonesTotal} fullført`;
+
+      // Mohamed – lagre snapshot automatisk én gang per dag
+      const todayKey = getTodayKey();
+      if (_lastAutoSnapshotKey !== todayKey && _currentProjectId) {
+        _lastAutoSnapshotKey = todayKey;
+        setDoc(
+          doc(db, "projects", _currentProjectId, "progressHistory", todayKey),
+          { pct: _state.progressPct, savedAt: serverTimestamp() },
+          { merge: true }
+        ).catch(() => {});
+      }
 
       renderWidget();
     },
     (err) => { console.warn("Project:", err.code); recomputeDerivedState(); renderWidget(); }
   ));
 
-  /* ---- 2. Filer – Mohammed: filtrert lokalt for å unngå compound index ---- */
+  /* ---- 2. Filer – filtrert lokalt for å unngå compound index ---- */
   _unsubs.push(onSnapshot(
     query(collection(db, "files"), where("projectId", "==", projectId)),
     (snap) => {
@@ -278,13 +266,11 @@ function startLiveAnalytics(projectId) {
 
       snap.forEach(d => {
         const data     = d.data();
-        // Mohamed – sjekk ALLE mulige datofelt
-        const fileDate = data.createdAt?.toDate?.()     ||
-                         data.dateUploaded?.toDate?.()  ||
-                         (data.createdAt?.seconds  ? new Date(data.createdAt.seconds  * 1000) : null) ||
+        const fileDate = data.createdAt?.toDate?.()    ||
+                         data.dateUploaded?.toDate?.() ||
+                         (data.createdAt?.seconds   ? new Date(data.createdAt.seconds * 1000)   : null) ||
                          (data.dateUploaded?.seconds ? new Date(data.dateUploaded.seconds * 1000) : null) ||
                          null;
-
         if (fileDate) {
           if (fileDate.getTime() >= weekStart) {
             filesThisWeek++;
@@ -316,8 +302,7 @@ function startLiveAnalytics(projectId) {
       snap.forEach(d => {
         const data    = d.data();
         const msgDate = data.createdAt?.toDate?.() ||
-                        (data.time ? new Date(data.time) : null) ||
-                        null;
+                        (data.time ? new Date(data.time) : null) || null;
         if (msgDate) {
           if (msgDate.getTime() >= weekStart) count++;
           if (!latestMessageAt || msgDate > latestMessageAt) latestMessageAt = msgDate;
@@ -326,20 +311,19 @@ function startLiveAnalytics(projectId) {
 
       _state.messagesCount   = count;
       _state.latestMessageAt = latestMessageAt;
-
       recomputeDerivedState();
       renderWidget();
     },
     (err) => { console.warn("Messages:", err.code); }
   ));
 
-  /* ---- 4. Tasks – gruppert per milepæl for grønne mini-barer ---- */
+  /* ---- 4. Tasks – gruppert per milepæl ---- */
   _unsubs.push(onSnapshot(
     collection(db, "projects", projectId, "tasks"),
     (snap) => {
       const byMs = {};
       snap.forEach(d => {
-        const t = d.data();
+        const t  = d.data();
         const id = t.delmalId || "ukjent";
         if (!byMs[id]) byMs[id] = { total: 0, done: 0 };
         byMs[id].total++;
@@ -353,116 +337,96 @@ function startLiveAnalytics(projectId) {
 }
 
 /* =========================================================
-   SVG GRAF – milepæl-fremgang per dag (Man–Søn)
-   Mohamed – beregner nøyaktig hvilken % prosjektet var på
-   for HVER dag denne uken, basert på milepæl-datoene.
-   Linjen stiger etter hvert som milepæler fullføres.
+   SVG GRAF – milepæl-fremgang over tid
+   Mohamed – bruker milepæl-datoer direkte. Viser linjegraf som
+   stiger etter hvert som milepæler fullføres.
 ========================================================= */
 function buildProgressChart() {
-  const todayIdx  = getTodayWeekIndex();
   const milestones = _state.milestones || [];
   const total      = milestones.length;
-  const weekStart  = getWeekStart();
 
-  // Mohamed – beregn progress% for hver dag i uken
-  // For dag i: tell milepæler der done=true OG date <= slutten av dag i
-  const values = WEEK_DAY_LABELS.map((_, dayIdx) => {
-    if (dayIdx > todayIdx) return null; // fremtidig dag
+  const doneWithDates = milestones
+    .filter(m => m.done && m.date)
+    .map(m => ({ date: m.date?.toDate ? m.date.toDate() : new Date(m.date), title: m.title }))
+    .sort((a, b) => a.date - b.date);
 
-    const dayEnd = new Date(weekStart);
-    dayEnd.setDate(weekStart.getDate() + dayIdx);
-    dayEnd.setHours(23, 59, 59, 999);
+  const today      = new Date();
+  const currentPct = total > 0 ? Math.round((_state.milestonesDone / total) * 100) : 0;
 
-    if (total === 0) return 0;
+  const points = [];
 
-    const doneByDay = milestones.filter(m => {
-      if (!m.done) return false;
-      if (!m.date) return true; // ingen dato = teller alltid
-      const mDate = m.date?.toDate ? m.date.toDate() : new Date(m.date);
-      // Mohamed – hvis milepælen er done, bruk tidligst av (dato, i dag)
-      // slik at fremtidige datoer på done-milepæler ikke blokkerer tellingen
-      const effectiveDate = mDate > new Date() ? new Date() : mDate;
-      return effectiveDate <= dayEnd;
-    }).length;
+  if (doneWithDates.length > 0) {
+    const start = new Date(doneWithDates[0].date);
+    start.setDate(start.getDate() - 1);
+    points.push({ pct: 0, label: fmtD(start) });
 
-    return Math.round((doneByDay / total) * 100);
-  });
+    doneWithDates.forEach((m, idx) => {
+      const pct = Math.round(((idx + 1) / total) * 100);
+      points.push({ pct, label: fmtD(m.date), title: m.title });
+    });
+  } else {
+    points.push({ pct: 0, label: "Start" });
+  }
 
+  const lastPt = points[points.length - 1];
+  if (lastPt.label !== fmtD(today)) {
+    points.push({ pct: currentPct, label: "I dag", isToday: true });
+  } else {
+    points[points.length - 1].isToday = true;
+  }
+
+  const n = points.length;
   const W = 300, H = 130;
-  const PAD = { top: 14, right: 12, bottom: 30, left: 40 };
+  const PAD = { top: 14, right: 16, bottom: 30, left: 40 };
   const iW  = W - PAD.left - PAD.right;
   const iH  = H - PAD.top  - PAD.bottom;
+  const xPos = i => PAD.left + (n === 1 ? iW / 2 : (i / (n - 1)) * iW);
+  const yPos = v => PAD.top  + iH - (v / 100) * iH;
 
-  const xPos = i => PAD.left + (i / 6) * iW;
-  const yPos = v => PAD.top + iH - (v / 100) * iH;
-
-  // Y-grid med nøyaktige prosent-labels
-  const yTicks = [0, 25, 50, 75, 100];
-  const grid = yTicks.map(v => `
-    <line x1="${PAD.left}" y1="${yPos(v).toFixed(1)}"
-          x2="${PAD.left+iW}" y2="${yPos(v).toFixed(1)}"
+  const grid = [0,25,50,75,100].map(v => `
+    <line x1="${PAD.left}" y1="${yPos(v).toFixed(1)}" x2="${PAD.left+iW}" y2="${yPos(v).toFixed(1)}"
           stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-    <text x="${PAD.left-5}" y="${(yPos(v)+4).toFixed(1)}"
-          text-anchor="end" font-size="8"
-          fill="rgba(255,255,255,0.40)">${v}%</text>
-  `).join("");
+    <text x="${PAD.left-5}" y="${(yPos(v)+4).toFixed(1)}" text-anchor="end" font-size="8"
+          fill="rgba(255,255,255,0.40)">${v}%</text>`).join("");
 
-  const xLabels = WEEK_DAY_LABELS.map((lbl, i) => `
-    <text x="${xPos(i).toFixed(1)}" y="${(H-5).toFixed(1)}"
-          text-anchor="middle" font-size="8"
-          fill="${i === todayIdx ? 'rgba(255,255,255,0.92)' : i < todayIdx ? 'rgba(255,255,255,0.70)' : 'rgba(255,255,255,0.30)'}"
-          font-weight="${i === todayIdx ? '700' : '400'}">${lbl}</text>
-  `).join("");
+  const xLabels = points.map((p, i) => `
+    <text x="${xPos(i).toFixed(1)}" y="${(H-5).toFixed(1)}" text-anchor="middle" font-size="8"
+          fill="${p.isToday ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.60)'}"
+          font-weight="${p.isToday ? '700' : '400'}">${p.label}</text>`).join("");
 
-  // Bare punkter med ekte data (frem til i dag)
-  const activePts = values
-    .map((v, i) => v !== null ? { x: xPos(i), y: yPos(v), v, i } : null)
-    .filter(Boolean);
+  // Mohamed – vanlig linje (ikke trappefunksjon)
+  const linePath = points.length > 1
+    ? `M ${points.map((p,i) => `${xPos(i).toFixed(1)},${yPos(p.pct).toFixed(1)}`).join(" L ")}`
+    : `M ${xPos(0).toFixed(1)},${yPos(points[0].pct).toFixed(1)}`;
 
-  const linePath = activePts.length > 1
-    ? `M ${activePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")}`
-    : activePts.length === 1 ? `M ${activePts[0].x.toFixed(1)},${activePts[0].y.toFixed(1)}` : "";
-
-  const areaPath = activePts.length > 1
-    ? `M ${activePts[0].x.toFixed(1)},${(PAD.top+iH).toFixed(1)}
-       L ${activePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")}
-       L ${activePts[activePts.length-1].x.toFixed(1)},${(PAD.top+iH).toFixed(1)} Z`
+  const areaPath = points.length > 1
+    ? `M ${xPos(0).toFixed(1)},${(PAD.top+iH).toFixed(1)} L ${points.map((p,i) => `${xPos(i).toFixed(1)},${yPos(p.pct).toFixed(1)}`).join(" L ")} L ${xPos(n-1).toFixed(1)},${(PAD.top+iH).toFixed(1)} Z`
     : "";
 
-  const lastPct = activePts[activePts.length-1]?.v ?? 0;
-  const futureLine = todayIdx < 6
-    ? `<line x1="${xPos(todayIdx).toFixed(1)}" y1="${yPos(lastPct).toFixed(1)}"
-             x2="${xPos(6).toFixed(1)}"         y2="${yPos(lastPct).toFixed(1)}"
-             stroke="rgba(147,197,253,0.20)" stroke-width="1.5" stroke-dasharray="4,4"/>` : "";
-
-  const dots = activePts.map((p, idx) => `
-    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}"
-            r="${idx === activePts.length-1 ? 5 : 3.5}"
-            fill="${idx === activePts.length-1 ? '#60a5fa' : '#93c5fd'}"
+  const dots = points.map((p, i) => `
+    <circle cx="${xPos(i).toFixed(1)}" cy="${yPos(p.pct).toFixed(1)}"
+            r="${p.isToday ? 5 : 3.5}"
+            fill="${p.isToday ? '#60a5fa' : '#93c5fd'}"
             stroke="rgba(255,255,255,0.90)" stroke-width="1.5">
-      <title>${WEEK_DAY_LABELS[p.i]}: ${p.v}%</title>
-    </circle>
-  `).join("");
+      <title>${p.label}: ${p.pct}%${p.title ? ` – ${p.title}` : ""}</title>
+    </circle>`).join("");
 
-  return `
-    <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
-         style="width:100%;height:auto;display:block;overflow:visible">
-      <defs>
-        <linearGradient id="msGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="rgba(96,165,250,0.40)"/>
-          <stop offset="100%" stop-color="rgba(96,165,250,0.00)"/>
-        </linearGradient>
-      </defs>
-      ${grid}
-      ${areaPath ? `<path d="${areaPath}" fill="url(#msGrad)"/>` : ""}
-      ${linePath  ? `<path d="${linePath}" fill="none" stroke="#60a5fa" stroke-width="2.5"
-                          stroke-linecap="round" stroke-linejoin="round"/>` : ""}
-      ${futureLine}${dots}${xLabels}
-    </svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+       style="width:100%;height:auto;display:block;overflow:visible">
+    <defs><linearGradient id="msGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(96,165,250,0.40)"/>
+      <stop offset="100%" stop-color="rgba(96,165,250,0.00)"/>
+    </linearGradient></defs>
+    ${grid}
+    ${areaPath ? `<path d="${areaPath}" fill="url(#msGrad)"/>` : ""}
+    <path d="${linePath}" fill="none" stroke="#60a5fa" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}${xLabels}
+  </svg>`;
 }
 
 /* =========================================================
-   RENDER WIDGET
+   RENDER HELPERS
 ========================================================= */
 function showLoading() {
   const c = document.getElementById("weekPlaceholder");
@@ -480,11 +444,14 @@ function animateBar(id, pct) {
   }));
 }
 
+/* =========================================================
+   RENDER WIDGET
+========================================================= */
 function renderWidget() {
   const container = document.getElementById("weekPlaceholder");
   if (!container) return;
 
-  const { progressPct, weekDescription, daysUsed, daysLeft, totalFiles,
+  const { progressPct, daysUsed, daysLeft, totalFiles,
           filesThisWeek, messagesCount, milestones, milestonesDone,
           milestonesTotal, currentMilestone, nextMilestoneDate,
           milestoneRisk, milestoneRiskLabel, activityLabel, activityTone,
@@ -497,15 +464,15 @@ function renderWidget() {
     ? (_state.tasksByMilestone?.[activeMilestone.id] || { total: 0, done: 0 })
     : { total: 0, done: 0 };
   const activeTaskPct   = activeTasks.total > 0
-    ? Math.round((activeTasks.done / activeTasks.total) * 100)
-    : 0;
+    ? Math.round((activeTasks.done / activeTasks.total) * 100) : 0;
 
-  // Mohamed – bar vises alltid, rett over milepæl-lista
+  // Mohamed – bar vises alltid rett over milepæl-lista, renamed fra "Tasks" til "Oppgaver"
   const activeTaskBar = activeMilestone ? `
     <div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;font-size:11px;
                   color:rgba(255,255,255,0.55);margin-bottom:5px">
-        <span>Tasks i <strong style="color:rgba(255,255,255,0.85)">${activeMilestone.title}</strong></span>
+        <span>Oppgaver i <strong style="color:rgba(255,255,255,0.85)">${activeMilestone.title}</strong></span>
+        <!-- Mohamed – byttet fra "Tasks i" til "Oppgaver i" -->
         <span>${activeTasks.done} / ${activeTasks.total > 0 ? activeTasks.total : "0"} (${activeTaskPct}%)</span>
       </div>
       <div style="background:rgba(255,255,255,0.08);border-radius:999px;height:10px;overflow:hidden">
@@ -516,7 +483,7 @@ function renderWidget() {
       </div>
     </div>` : "";
 
-  // Mohamed – milepæl-liste uten individuelle barer
+  // Mohamed – milepæl-liste
   const milestonesHtml = milestones.length > 0
     ? milestones.map((m, i) => `
         <div class="milestone-row ${m.done ? 'done' : ''}">
@@ -524,7 +491,7 @@ function renderWidget() {
           <span class="milestone-title">${m.title || `Milepæl ${i+1}`}</span>
           ${m.date ? `<span class="milestone-date">${formatDateNo(m.date)}</span>` : ""}
         </div>`).join("")
-    : `<div style="font-size:12px;color:rgba(255,255,255,0.45)">Ingen milepæler lagt inn ennå. Trykk ✏️ for å legge til.</div>`;
+    : `<div style="font-size:12px;color:rgba(255,255,255,0.45)">Ingen milepæler lagt inn ennå. Trykk Rediger for å legge til.</div>`;
 
   const alertsHtml = alerts.length
     ? alerts.map(a => `<div class="analytics-alert-item">${a}</div>`).join("")
@@ -532,8 +499,6 @@ function renderWidget() {
 
   container.innerHTML = `
     <div class="analytics-widget">
-
-      <p class="analytics-desc">${weekDescription}</p>
 
       <div class="analytics-summary-card">
         <div class="analytics-summary-title">Prosjektoppsummering</div>
@@ -552,31 +517,39 @@ function renderWidget() {
       </div>
 
       <div class="analytics-grid-2">
+        <!-- Mohamed – endret fra å vise total milepæl-% til å vise task-info fra grønn bar -->
         <div class="analytics-mini-card tone-${milestoneRisk}">
-          <div class="analytics-mini-title">Milepæl-fremdrift</div>
-          <div class="analytics-mini-big">${pct}%</div>
-          <div class="analytics-mini-meta">${milestonesDone} / ${milestonesTotal} fullført</div>
-          <div class="analytics-mini-meta">${currentMilestone}</div>
+          <div class="analytics-mini-title">Nåværende milepæl</div>
+          ${activeMilestone ? `
+            <div class="analytics-mini-big" style="font-size:13px">${activeMilestone.title}</div>
+            <div class="analytics-mini-meta">${activeTasks.done} / ${activeTasks.total} oppgaver fullført</div>
+            <div class="analytics-mini-meta">${activeTaskPct}% av milepælen</div>
+          ` : `
+            <div class="analytics-mini-big" style="font-size:13px">Alle fullført ✓</div>
+            <div class="analytics-mini-meta">${milestonesTotal} av ${milestonesTotal} milepæler er fullført</div>
+            <div class="analytics-mini-meta">Prosjektet er ferdig</div>
+          `}
         </div>
         <div class="analytics-mini-card tone-${milestoneRisk}">
-          <div class="analytics-mini-title">Risiko basert på milepæl</div>
+          <div class="analytics-mini-title">Risiko</div>
           <div class="analytics-mini-big">${milestoneRiskLabel}</div>
           <div class="analytics-mini-meta">Neste: ${formatDateNo(nextMilestoneDate)}</div>
           <div class="analytics-mini-meta tone-${activityTone}">${activityLabel}</div>
         </div>
       </div>
 
-      <!-- Mohamed – task-bar rett over milepæl-lista, ingen gap -->
+      <!-- Mohamed – task-bar rett over milepæl-lista -->
       ${activeTaskBar}
       <div class="analytics-milestone-box" style="margin-top:0">
         <div class="analytics-milestone-title" style="margin-bottom:8px">Milepæler (${milestonesDone}/${milestonesTotal})</div>
         <div class="analytics-milestone-list">${milestonesHtml}</div>
       </div>
 
+      <!-- Mohamed – endret tittel fra "denne uken" til "over tid" -->
       <div class="analytics-chart-wrap">
-        <div class="analytics-chart-title">Milepæl-fremgang denne uken</div>
+        <div class="analytics-chart-title">Milepæl-fremgang over tid</div>
         <div class="analytics-chart-inner">${buildProgressChart()}</div>
-        <p class="analytics-chart-sub">Viser milepæl-% per dag denne uken</p>
+        <p class="analytics-chart-sub">Blå linje viser total prosjektfremgang – stiger når en milepæl fullføres</p>
       </div>
 
       <div class="analytics-alert-box">
@@ -584,8 +557,9 @@ function renderWidget() {
         <div class="analytics-alert-list">${alertsHtml}</div>
       </div>
 
+      <!-- Mohamed – fjernet "Totale filer på prosjektet", erstattet med neste milepæl-info -->
       <div class="analytics-footer-stats">
-        <span>Totale filer på prosjektet: <strong>${totalFiles}</strong></span>
+        <span>Neste milepæl: <strong>${activeMilestone ? `${activeMilestone.title} – ${formatDateNo(activeMilestone.date)}` : "Alle milepæler fullført ✓"}</strong></span>
       </div>
 
     </div>`;
@@ -597,24 +571,21 @@ function renderWidget() {
 
 /* =========================================================
    ADMIN MODAL
-   Mohamed – milepæler som liste, ingen manuell progress slider
+   Mohamed – fjernet emoji fra tittelen, fjernet ukesnotat-felt
 ========================================================= */
 function openAdminModal() {
   const existing = document.getElementById("adminModal");
   if (existing) { existing.remove(); return; }
 
   const milestones = _state.milestones || [];
-
   const modal = document.createElement("div");
   modal.id = "adminModal";
   modal.innerHTML = `
     <div class="admin-backdrop"></div>
     <div class="admin-panel">
-      <div class="admin-title">⚙️ Rediger prosjekt</div>
+      <div class="admin-title">Rediger prosjekt</div>
 
-      <label class="admin-label">Ukesnotat</label>
-      <textarea id="adminNote" class="admin-input admin-textarea"
-                placeholder="Beskriv hva som skjedde denne uken…">${_state.weekDescription === "Ingen ukesnotat lagt inn ennå." ? "" : _state.weekDescription}</textarea>
+      <!-- Mohamed – ukesnotat fjernet, kan implementeres senere -->
 
       <label class="admin-label">Prosjektstart</label>
       <input id="adminStart" type="date" class="admin-input"
@@ -653,16 +624,13 @@ function openAdminModal() {
 
   document.body.appendChild(modal);
 
-  // Lukk
   modal.querySelector(".admin-backdrop").addEventListener("click", () => modal.remove());
-  document.getElementById("adminClose").addEventListener("click", () => modal.remove());
+  document.getElementById("adminClose").addEventListener("click",  () => modal.remove());
 
-  // Fjern-knapper på eksisterende rader
   modal.querySelectorAll(".admin-ms-remove").forEach(btn => {
     btn.addEventListener("click", () => btn.closest(".admin-milestone-row").remove());
   });
 
-  // Legg til ny milepæl
   document.getElementById("adminAddMilestone").addEventListener("click", () => {
     const list = document.getElementById("adminMilestoneList");
     const row  = document.createElement("div");
@@ -676,14 +644,11 @@ function openAdminModal() {
     row.querySelector(".admin-ms-remove").addEventListener("click", () => row.remove());
   });
 
-  // Lagre
   document.getElementById("adminSave").addEventListener("click", async () => {
-    const weekNote  = document.getElementById("adminNote").value.trim();
-    const startStr  = document.getElementById("adminStart").value;
-    const duration  = parseInt(document.getElementById("adminDuration").value, 10);
-    const statusEl  = document.getElementById("adminStatus");
+    const startStr = document.getElementById("adminStart").value;
+    const duration = parseInt(document.getElementById("adminDuration").value, 10);
+    const statusEl = document.getElementById("adminStatus");
 
-    // Mohamed – samle milepæler fra modal
     const rows       = document.querySelectorAll(".admin-milestone-row");
     const milestones = [];
     rows.forEach((row, i) => {
@@ -700,8 +665,7 @@ function openAdminModal() {
       }
     });
 
-    // Auto goal-tekst = første ufullendte milepæl
-    const nextMs  = milestones.find(m => !m.done);
+    const nextMs   = milestones.find(m => !m.done);
     const goalText = nextMs?.title || (milestones.length > 0 ? "Alle milepæler fullført ✓" : _state.goalText);
 
     if (!_currentProjectId) { statusEl.textContent = "Ingen prosjekt valgt."; return; }
@@ -709,13 +673,21 @@ function openAdminModal() {
     statusEl.textContent = "Lagrer…";
     try {
       await setDoc(doc(db, "projects", _currentProjectId), {
-        weekNote:     weekNote || "Ingen ukesnotat lagt inn ennå.",
         startedAt:    startStr ? Timestamp.fromDate(new Date(startStr)) : serverTimestamp(),
         durationDays: isNaN(duration) ? 90 : duration,
-        milestones,   // Mohamed – hele lista lagres
-        goalText,     // auto-satt fra første ufullendte milepæl
+        milestones,
+        goalText,
         updatedAt:    serverTimestamp()
       }, { merge: true });
+
+      // Lagre dagens progress-snapshot for grafen
+      const snapPct = milestones.length > 0
+        ? Math.round(milestones.filter(m => m.done).length / milestones.length * 100) : 0;
+      await setDoc(
+        doc(db, "projects", _currentProjectId, "progressHistory", getTodayKey()),
+        { pct: snapPct, savedAt: serverTimestamp() },
+        { merge: true }
+      );
 
       statusEl.style.color = "#86efac";
       statusEl.textContent = "✓ Lagret!";
@@ -734,7 +706,6 @@ window.openAdminModal = openAdminModal;
    INIT
 ========================================================= */
 function initAnalytics() {
-  // Mohamed – inject stiler ved sidelast, ikke vent på modal
   if (!document.getElementById("adminModalStyles")) {
     const s = document.createElement("style");
     s.id = "adminModalStyles";
@@ -765,7 +736,6 @@ function initAnalytics() {
       .admin-ms-date { width:120px; flex-shrink:0; }
       .admin-ms-remove { background:none; border:none; color:rgba(255,255,255,0.40); cursor:pointer; font-size:14px; padding:2px 6px; }
       .admin-ms-remove:hover { color:#f87171; }
-      /* Milepæl-liste i widget – lastes ved sidelast */
       .analytics-milestone-box { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:12px; padding:12px 14px; }
       .analytics-milestone-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,0.50); margin-bottom:8px; }
       .analytics-milestone-list { display:flex; flex-direction:column; gap:6px; }
