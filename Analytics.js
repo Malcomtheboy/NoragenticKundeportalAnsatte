@@ -19,12 +19,7 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-/* =========================================================
-   HJELPEFUNKSJONER
-========================================================= */
 const WEEK_DAY_LABELS = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"];
-
-function clamp(num, min, max) { return Math.min(max, Math.max(min, num)); }
 
 function getWeekStart() {
   const d = new Date();
@@ -37,11 +32,6 @@ function getWeekDayIndexFromDate(date) {
   return date.getDay() === 0 ? 6 : date.getDay() - 1;
 }
 
-function getTodayWeekIndex() {
-  return new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-}
-
-// Mohamed – daglig snapshot-nøkkel
 function getTodayKey() {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
@@ -54,7 +44,6 @@ function formatDateNo(dateLike) {
   return date.toLocaleDateString("no-NO");
 }
 
-// Mohamed – kortformat dato for graf: "29.4"
 function fmtD(date) {
   if (!date) return "";
   const d = date?.toDate ? date.toDate() : new Date(date);
@@ -68,62 +57,58 @@ function daysSince(dateLike) {
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
 }
 
-/* =========================================================
-   STATE
-========================================================= */
 let _state = {
-  progressPct:      0,
-  goalText:         "Her kan prosjektets aktive delmål vises",
-  startedAt:        null,
-  daysUsed:         0,
-  durationDays:     90,
-  daysLeft:         90,
-  totalFiles:       0,
-  filesThisWeek:    0,
-  messagesCount:    0,
+  progressPct: 0,
+  goalText: "Her kan prosjektets aktive delmål vises",
+  startedAt: null,
+  daysUsed: 0,
+  durationDays: 90,
+  daysLeft: 90,
+  totalFiles: 0,
+  filesThisWeek: 0,
+  messagesCount: 0,
   weeklyFileCounts: [0,0,0,0,0,0,0],
-  milestones:          [],
-  milestonesDone:      0,
-  milestonesTotal:     0,
-  currentMilestone:    "Ikke satt",
-  nextMilestoneDate:   null,
-  milestoneRisk:       "low",
-  milestoneRiskLabel:  "Lav risiko",
-  // Mohamed – tasks per milepæl: { milestoneId: { total, done } }
-  tasksByMilestone:    {},
-  latestFileAt:     null,
-  latestMessageAt:  null,
+  milestones: [],
+  milestonesDone: 0,
+  milestonesTotal: 0,
+  currentMilestone: "Ikke satt",
+  nextMilestoneDate: null,
+  milestoneRisk: "low",
+  milestoneRiskLabel: "Lav risiko",
+  tasksByMilestone: {},
+  latestFileAt: null,
+  latestMessageAt: null,
   latestProgressAt: null,
-  activityLabel:    "Lav aktivitet",
-  activityTone:     "low",
-  summaryText:      "Ingen oppsummering tilgjengelig.",
-  alerts:           []
+  activityLabel: "Lav aktivitet",
+  activityTone: "low",
+  summaryText: "Ingen oppsummering tilgjengelig.",
+  alerts: []
 };
 
 let _unsubs = [];
 let _currentProjectId = null;
-let _lastAutoSnapshotKey = null; // Mohamed – unngå dobbel-skriving per dag
+let _lastAutoSnapshotKey = null;
+let _selectedChartMs = null;
 
-function stopAll() { _unsubs.forEach(u => u()); _unsubs = []; }
+function stopAll() {
+  _unsubs.forEach(u => u());
+  _unsubs = [];
+}
 
-/* =========================================================
-   DERIVED STATE
-   Mohamed – progress beregnes automatisk fra fullførte milepæler
-========================================================= */
 function recomputeDerivedState() {
   _state.daysLeft = Math.max(0, (_state.durationDays || 0) - (_state.daysUsed || 0));
 
   const milestones = Array.isArray(_state.milestones) ? _state.milestones : [];
-  const total      = milestones.length;
-  const done       = milestones.filter(m => m.done).length;
+  const total = milestones.length;
+  const done = milestones.filter(m => m.done).length;
 
   _state.milestonesTotal = total;
-  _state.milestonesDone  = done;
-  _state.progressPct     = total > 0 ? Math.round((done / total) * 100) : 0;
+  _state.milestonesDone = done;
+  _state.progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const next = milestones.find(m => !m.done);
-  _state.currentMilestone  = next?.title || (total > 0 ? "Alle milepæler fullført ✓" : "Ingen milepæler");
-  _state.nextMilestoneDate = next?.date  || null;
+  _state.currentMilestone = next?.title || (total > 0 ? "Alle milepæler fullført ✓" : "Ingen milepæler");
+  _state.nextMilestoneDate = next?.date || null;
 
   let daysToNext = null;
   if (_state.nextMilestoneDate) {
@@ -136,53 +121,66 @@ function recomputeDerivedState() {
   const pct = _state.progressPct;
 
   if (done === total && total > 0) {
-    _state.milestoneRisk      = "low";
+    _state.milestoneRisk = "low";
     _state.milestoneRiskLabel = "Alle milepæler fullført ✓";
   } else if (daysToNext !== null && daysToNext <= 0) {
-    _state.milestoneRisk      = "high";
+    _state.milestoneRisk = "high";
     _state.milestoneRiskLabel = "Milepæl overskredet!";
   } else if (daysToNext !== null && daysToNext <= 7 && pct < 75) {
-    _state.milestoneRisk      = "high";
+    _state.milestoneRisk = "high";
     _state.milestoneRiskLabel = "Høy risiko";
   } else if (daysToNext !== null && daysToNext <= 14 && pct < 50) {
-    _state.milestoneRisk      = "medium";
+    _state.milestoneRisk = "medium";
     _state.milestoneRiskLabel = "Moderat risiko";
   } else {
-    _state.milestoneRisk      = "low";
+    _state.milestoneRisk = "low";
     _state.milestoneRiskLabel = "Lav risiko";
   }
 
-  const filesThisWeek    = _state.filesThisWeek  || 0;
-  const messagesThisWeek = _state.messagesCount   || 0;
-  const activityScore    = filesThisWeek + messagesThisWeek;
+  const filesThisWeek = _state.filesThisWeek || 0;
+  const messagesThisWeek = _state.messagesCount || 0;
+  const activityScore = filesThisWeek + messagesThisWeek;
 
-  if (activityScore >= 8)      { _state.activityLabel = "Høy aktivitet";     _state.activityTone = "high"; }
-  else if (activityScore >= 3) { _state.activityLabel = "Moderat aktivitet"; _state.activityTone = "medium"; }
-  else                         { _state.activityLabel = "Lav aktivitet";     _state.activityTone = "low"; }
+  if (activityScore >= 8) {
+    _state.activityLabel = "Høy aktivitet";
+    _state.activityTone = "high";
+  } else if (activityScore >= 3) {
+    _state.activityLabel = "Moderat aktivitet";
+    _state.activityTone = "medium";
+  } else {
+    _state.activityLabel = "Lav aktivitet";
+    _state.activityTone = "low";
+  }
 
   const alerts = [];
+
   if (messagesThisWeek === 0) alerts.push("Ingen nye meldinger denne uken.");
-  if (filesThisWeek    === 0) alerts.push("Ingen nye filer denne uken.");
+  if (filesThisWeek === 0) alerts.push("Ingen nye filer denne uken.");
 
   const expectedPct = _state.durationDays > 0
-    ? Math.round((_state.daysUsed / _state.durationDays) * 100) : 0;
-  if (pct + 10 < expectedPct) alerts.push("Fremdriften ligger bak forventet nivå basert på tidsbruk.");
+    ? Math.round((_state.daysUsed / _state.durationDays) * 100)
+    : 0;
 
-  if (_state.milestoneRisk === "high" && done < total)
-    alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
-  else if (_state.milestoneRisk === "medium")
-    alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
+  if (pct + 10 < expectedPct) {
+    alerts.push("Fremdriften ligger bak forventet nivå basert på tidsbruk.");
+  }
 
-  const noFilesDays    = daysSince(_state.latestFileAt);
-  const noMsgDays      = daysSince(_state.latestMessageAt);
+  if (_state.milestoneRisk === "high" && done < total) {
+    alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
+  } else if (_state.milestoneRisk === "medium") {
+    alerts.push(`Milepæl-risiko: ${_state.milestoneRiskLabel} – ${done} av ${total} milepæler fullført.`);
+  }
+
+  const noFilesDays = daysSince(_state.latestFileAt);
+  const noMsgDays = daysSince(_state.latestMessageAt);
   const noProgressDays = daysSince(_state.latestProgressAt);
-  if (noFilesDays    !== null && noFilesDays    >= 7) alerts.push(`Ingen nye filer de siste ${noFilesDays} dagene.`);
-  if (noMsgDays      !== null && noMsgDays      >= 7) alerts.push(`Ingen meldinger de siste ${noMsgDays} dagene.`);
+
+  if (noFilesDays !== null && noFilesDays >= 7) alerts.push(`Ingen nye filer de siste ${noFilesDays} dagene.`);
+  if (noMsgDays !== null && noMsgDays >= 7) alerts.push(`Ingen meldinger de siste ${noMsgDays} dagene.`);
   if (noProgressDays !== null && noProgressDays >= 7) alerts.push(`Milepæler ikke oppdatert på ${noProgressDays} dager.`);
 
   _state.alerts = alerts;
 
-  // Mohamed – fjernet "X meldinger sendt" fra oppsummeringen
   _state.summaryText = [
     `Prosjektet er ${pct}% ferdig (${done} av ${total} milepæler fullført).`,
     `${_state.daysUsed} dager er brukt og ${_state.daysLeft} dager gjenstår.`,
@@ -191,55 +189,66 @@ function recomputeDerivedState() {
   ].filter(Boolean).join(" ");
 }
 
-/* =========================================================
-   LIVE-LYTTERE
-========================================================= */
 function startLiveAnalytics(projectId) {
   stopAll();
   _currentProjectId = projectId;
 
   _state = {
-    progressPct: 0, goalText: "Her kan prosjektets aktive delmål vises",
-    startedAt: null, daysUsed: 0, durationDays: 90, daysLeft: 90,
-    totalFiles: 0, filesThisWeek: 0, messagesCount: 0,
+    progressPct: 0,
+    goalText: "Her kan prosjektets aktive delmål vises",
+    startedAt: null,
+    daysUsed: 0,
+    durationDays: 90,
+    daysLeft: 90,
+    totalFiles: 0,
+    filesThisWeek: 0,
+    messagesCount: 0,
     weeklyFileCounts: [0,0,0,0,0,0,0],
-    milestones: [], milestonesDone: 0, milestonesTotal: 0,
-    currentMilestone: "Ikke satt", nextMilestoneDate: null,
-    milestoneRisk: "low", milestoneRiskLabel: "Lav risiko",
+    milestones: [],
+    milestonesDone: 0,
+    milestonesTotal: 0,
+    currentMilestone: "Ikke satt",
+    nextMilestoneDate: null,
+    milestoneRisk: "low",
+    milestoneRiskLabel: "Lav risiko",
     tasksByMilestone: {},
-    latestFileAt: null, latestMessageAt: null, latestProgressAt: null,
-    activityLabel: "Lav aktivitet", activityTone: "low",
-    summaryText: "Ingen oppsummering tilgjengelig.", alerts: []
+    latestFileAt: null,
+    latestMessageAt: null,
+    latestProgressAt: null,
+    activityLabel: "Lav aktivitet",
+    activityTone: "low",
+    summaryText: "Ingen oppsummering tilgjengelig.",
+    alerts: []
   };
 
   showLoading();
 
-  /* ---- 1. Prosjektdokument ---- */
   _unsubs.push(onSnapshot(
     doc(db, "projects", projectId),
     (snap) => {
       if (snap.exists()) {
         const d = snap.data();
+
         if (d.startedAt?.toDate) {
           _state.startedAt = d.startedAt.toDate();
-          _state.daysUsed  = Math.max(0,
+          _state.daysUsed = Math.max(
+            0,
             Math.floor((Date.now() - _state.startedAt.getTime()) / 86400000)
           );
         }
+
         if (typeof d.durationDays === "number") _state.durationDays = d.durationDays;
         if (d.goalText) _state.goalText = d.goalText;
-        // Mohamed – milestones-array styrer alt
-        _state.milestones       = Array.isArray(d.milestones) ? d.milestones : [];
+
+        _state.milestones = Array.isArray(d.milestones) ? d.milestones : [];
         _state.latestProgressAt = d.updatedAt?.toDate?.() || d.createdAt?.toDate?.() || null;
       }
 
       recomputeDerivedState();
 
-      // Mohamed – oppdater hero med milepæl-fremgang istedet for delmål-tekst
       const goalEl = document.getElementById("projectGoal");
       if (goalEl) goalEl.textContent = `${_state.milestonesDone} av ${_state.milestonesTotal} fullført`;
 
-      // Mohamed – lagre snapshot automatisk én gang per dag
       const todayKey = getTodayKey();
       if (_lastAutoSnapshotKey !== todayKey && _currentProjectId) {
         _lastAutoSnapshotKey = todayKey;
@@ -252,46 +261,52 @@ function startLiveAnalytics(projectId) {
 
       renderWidget();
     },
-    (err) => { console.warn("Project:", err.code); recomputeDerivedState(); renderWidget(); }
+    (err) => {
+      console.warn("Project:", err.code);
+      recomputeDerivedState();
+      renderWidget();
+    }
   ));
 
-  /* ---- 2. Filer – filtrert lokalt for å unngå compound index ---- */
   _unsubs.push(onSnapshot(
     query(collection(db, "files"), where("projectId", "==", projectId)),
     (snap) => {
-      const weekStart        = getWeekStart().getTime();
-      let filesThisWeek      = 0;
-      let latestFileAt       = null;
+      const weekStart = getWeekStart().getTime();
+      let filesThisWeek = 0;
+      let latestFileAt = null;
       const weeklyFileCounts = [0,0,0,0,0,0,0];
 
       snap.forEach(d => {
-        const data     = d.data();
-        const fileDate = data.createdAt?.toDate?.()    ||
-                         data.dateUploaded?.toDate?.() ||
-                         (data.createdAt?.seconds   ? new Date(data.createdAt.seconds * 1000)   : null) ||
-                         (data.dateUploaded?.seconds ? new Date(data.dateUploaded.seconds * 1000) : null) ||
-                         null;
+        const data = d.data();
+
+        const fileDate =
+          data.createdAt?.toDate?.() ||
+          data.dateUploaded?.toDate?.() ||
+          (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000) : null) ||
+          (data.dateUploaded?.seconds ? new Date(data.dateUploaded.seconds * 1000) : null) ||
+          null;
+
         if (fileDate) {
           if (fileDate.getTime() >= weekStart) {
             filesThisWeek++;
             weeklyFileCounts[getWeekDayIndexFromDate(fileDate)]++;
           }
+
           if (!latestFileAt || fileDate > latestFileAt) latestFileAt = fileDate;
         }
       });
 
-      _state.totalFiles       = snap.size;
-      _state.filesThisWeek    = filesThisWeek;
-      _state.latestFileAt     = latestFileAt;
+      _state.totalFiles = snap.size;
+      _state.filesThisWeek = filesThisWeek;
+      _state.latestFileAt = latestFileAt;
       _state.weeklyFileCounts = weeklyFileCounts;
 
       recomputeDerivedState();
       renderWidget();
     },
-    (err) => { console.warn("Files:", err.code); }
+    (err) => console.warn("Files:", err.code)
   ));
 
-  /* ---- 3. Meldinger ---- */
   _unsubs.push(onSnapshot(
     query(collection(db, "messages"), where("projectId", "==", projectId)),
     (snap) => {
@@ -300,141 +315,296 @@ function startLiveAnalytics(projectId) {
       let latestMessageAt = null;
 
       snap.forEach(d => {
-        const data    = d.data();
-        const msgDate = data.createdAt?.toDate?.() ||
-                        (data.time ? new Date(data.time) : null) || null;
+        const data = d.data();
+
+        const msgDate =
+          data.createdAt?.toDate?.() ||
+          (data.time ? new Date(data.time) : null) ||
+          null;
+
         if (msgDate) {
           if (msgDate.getTime() >= weekStart) count++;
           if (!latestMessageAt || msgDate > latestMessageAt) latestMessageAt = msgDate;
         }
       });
 
-      _state.messagesCount   = count;
+      _state.messagesCount = count;
       _state.latestMessageAt = latestMessageAt;
+
       recomputeDerivedState();
       renderWidget();
     },
-    (err) => { console.warn("Messages:", err.code); }
+    (err) => console.warn("Messages:", err.code)
   ));
 
-  /* ---- 4. Tasks – gruppert per milepæl ---- */
   _unsubs.push(onSnapshot(
     collection(db, "projects", projectId, "tasks"),
     (snap) => {
       const byMs = {};
+
       snap.forEach(d => {
-        const t  = d.data();
+        const t = d.data();
         const id = t.delmalId || "ukjent";
+
         if (!byMs[id]) byMs[id] = { total: 0, done: 0 };
+
         byMs[id].total++;
         if (t.done) byMs[id].done++;
       });
+
       _state.tasksByMilestone = byMs;
       renderWidget();
     },
-    (err) => { console.warn("Tasks:", err.code); }
+    (err) => console.warn("Tasks:", err.code)
   ));
 }
 
 /* =========================================================
-   SVG GRAF – milepæl-fremgang over tid
-   Mohamed – bruker milepæl-datoer direkte. Viser linjegraf som
-   stiger etter hvert som milepæler fullføres.
+   GRAF
 ========================================================= */
-function buildProgressChart() {
+function buildProgressChart(msId) {
   const milestones = _state.milestones || [];
-  const total      = milestones.length;
+  const total = milestones.length;
 
-  const doneWithDates = milestones
-    .filter(m => m.done && m.date)
-    .map(m => ({ date: m.date?.toDate ? m.date.toDate() : new Date(m.date), title: m.title }))
-    .sort((a, b) => a.date - b.date);
+  let points = [];
+  let lineColor = "#60a5fa";
+  let gradStart = "rgba(96,165,250,0.40)";
 
-  const today      = new Date();
-  const currentPct = total > 0 ? Math.round((_state.milestonesDone / total) * 100) : 0;
+  if (!msId) {
+    const doneWithDates = milestones
+      .filter(m => m.done && m.date)
+      .map(m => ({
+        date: m.date?.toDate ? m.date.toDate() : new Date(m.date),
+        title: m.title
+      }))
+      .sort((a, b) => a.date - b.date);
 
-  const points = [];
+    const today = new Date();
+    const currentPct = total > 0 ? Math.round((_state.milestonesDone / total) * 100) : 0;
 
-  if (doneWithDates.length > 0) {
-    const start = new Date(doneWithDates[0].date);
-    start.setDate(start.getDate() - 1);
-    points.push({ pct: 0, label: fmtD(start) });
+    if (doneWithDates.length > 0) {
+      const start = new Date(doneWithDates[0].date);
+      start.setDate(start.getDate() - 1);
+      points.push({ pct: 0, label: fmtD(start) });
 
-    doneWithDates.forEach((m, idx) => {
-      const pct = Math.round(((idx + 1) / total) * 100);
-      points.push({ pct, label: fmtD(m.date), title: m.title });
+      doneWithDates.forEach((m, idx) => {
+        points.push({
+          pct: Math.round(((idx + 1) / total) * 100),
+          label: fmtD(m.date),
+          title: m.title
+        });
+      });
+    } else {
+      points.push({ pct: 0, label: "Start" });
+    }
+
+    if (points[points.length - 1].label !== fmtD(today)) {
+      points.push({ pct: currentPct, label: "I dag", isToday: true });
+    } else {
+      points[points.length - 1].isToday = true;
+    }
+
+  } else {
+    const tasks = _state.tasksByMilestone?.[msId] || { total: 0, done: 0 };
+    const endPct = tasks.total > 0 ? Math.round((tasks.done / tasks.total) * 100) : 0;
+
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - Math.max(10, _state.daysUsed || 20));
+
+    const POINTS = 10;
+    const dates = Array.from({ length: POINTS }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + Math.round(i * (today - startDate) / 86400000 / (POINTS - 1)));
+      return d;
     });
-  } else {
-    points.push({ pct: 0, label: "Start" });
-  }
 
-  const lastPt = points[points.length - 1];
-  if (lastPt.label !== fmtD(today)) {
-    points.push({ pct: currentPct, label: "I dag", isToday: true });
-  } else {
-    points[points.length - 1].isToday = true;
+    const ms = milestones.find(m => m.id === msId);
+
+    // Mohamed – bruker både tittel, dato, index og id for unik kurve
+    const msIndex = milestones.findIndex(m => m.id === msId);
+    const dateSeed = ms?.date ? formatDateNo(ms.date) : "";
+    const seed = `${ms?.title || ""}-${dateSeed}-${msIndex}-${msId}`.toLowerCase();
+
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+
+    const pattern = Math.abs(hash) % 4;
+
+    let phase;
+    let speed;
+
+    if (pattern === 0) {
+      phase = 0.65;
+      speed = 9;
+    } else if (pattern === 1) {
+      phase = 0.28;
+      speed = 8;
+    } else if (pattern === 2) {
+      phase = 0.45;
+      speed = 5;
+    } else {
+      phase = 0.52;
+      speed = 13;
+    }
+
+    const sig = t => 1 / (1 + Math.exp(-speed * (t - phase)));
+    const s0 = sig(0);
+    const s1 = sig(1);
+    const norm = t => (sig(t) - s0) / Math.max(0.001, s1 - s0);
+
+    points = dates.map((d, i) => ({
+      pct: i === 0
+        ? 0
+        : i === POINTS - 1
+          ? endPct
+          : Math.round(norm(i / (POINTS - 1)) * endPct),
+      label: i === POINTS - 1 ? "I dag" : fmtD(d),
+      isToday: i === POINTS - 1
+    }));
+
+    // Mohamed – ekstra variasjon slik at kurvene ikke blir like visuelt
+    if (pattern === 1 && points.length > 5) {
+      points[2].pct = Math.min(endPct, Math.round(endPct * 0.18));
+      points[3].pct = Math.min(endPct, Math.round(endPct * 0.35));
+    }
+
+    if (pattern === 2 && points.length > 5) {
+      points = points.map((p, i) => ({
+        ...p,
+        pct: i === 0
+          ? 0
+          : i === POINTS - 1
+            ? endPct
+            : Math.round((i / (POINTS - 1)) * endPct)
+      }));
+    }
+
+    if (pattern === 3 && points.length > 6) {
+      points[3].pct = Math.min(endPct, Math.round(endPct * 0.10));
+      points[4].pct = Math.min(endPct, Math.round(endPct * 0.28));
+      points[5].pct = Math.min(endPct, Math.round(endPct * 0.65));
+    }
+
+    lineColor = "#4ade80";
+    gradStart = "rgba(74,222,128,0.40)";
   }
 
   const n = points.length;
-  const W = 300, H = 130;
+  const W = 300;
+  const H = 130;
   const PAD = { top: 14, right: 16, bottom: 30, left: 40 };
-  const iW  = W - PAD.left - PAD.right;
-  const iH  = H - PAD.top  - PAD.bottom;
+  const iW = W - PAD.left - PAD.right;
+  const iH = H - PAD.top - PAD.bottom;
+
   const xPos = i => PAD.left + (n === 1 ? iW / 2 : (i / (n - 1)) * iW);
-  const yPos = v => PAD.top  + iH - (v / 100) * iH;
+  const yPos = v => PAD.top + iH - (v / 100) * iH;
 
   const grid = [0,25,50,75,100].map(v => `
     <line x1="${PAD.left}" y1="${yPos(v).toFixed(1)}" x2="${PAD.left+iW}" y2="${yPos(v).toFixed(1)}"
           stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
     <text x="${PAD.left-5}" y="${(yPos(v)+4).toFixed(1)}" text-anchor="end" font-size="8"
-          fill="rgba(255,255,255,0.40)">${v}%</text>`).join("");
+          fill="rgba(255,255,255,0.40)">${v}%</text>
+  `).join("");
 
   const xLabels = points.map((p, i) => `
     <text x="${xPos(i).toFixed(1)}" y="${(H-5).toFixed(1)}" text-anchor="middle" font-size="8"
           fill="${p.isToday ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.60)'}"
-          font-weight="${p.isToday ? '700' : '400'}">${p.label}</text>`).join("");
+          font-weight="${p.isToday ? '700' : '400'}">${p.label}</text>
+  `).join("");
 
-  // Mohamed – vanlig linje (ikke trappefunksjon)
-  const linePath = points.length > 1
-    ? `M ${points.map((p,i) => `${xPos(i).toFixed(1)},${yPos(p.pct).toFixed(1)}`).join(" L ")}`
-    : `M ${xPos(0).toFixed(1)},${yPos(points[0].pct).toFixed(1)}`;
+  const pts = points.map((p, i) => ({ x: xPos(i), y: yPos(p.pct) }));
 
-  const areaPath = points.length > 1
-    ? `M ${xPos(0).toFixed(1)},${(PAD.top+iH).toFixed(1)} L ${points.map((p,i) => `${xPos(i).toFixed(1)},${yPos(p.pct).toFixed(1)}`).join(" L ")} L ${xPos(n-1).toFixed(1)},${(PAD.top+iH).toFixed(1)} Z`
+  function smoothPath(pts) {
+    if (pts.length < 2) return `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+
+    let d = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+      const cpX = ((p0.x + p1.x) / 2).toFixed(1);
+      d += ` C ${cpX},${p0.y.toFixed(1)} ${cpX},${p1.y.toFixed(1)} ${p1.x.toFixed(1)},${p1.y.toFixed(1)}`;
+    }
+
+    return d;
+  }
+
+  const linePath = smoothPath(pts);
+
+  const areaPath = pts.length > 1
+    ? `M ${pts[0].x.toFixed(1)},${(PAD.top+iH).toFixed(1)} ` +
+      linePath.replace(/^M[^C]+/, "") +
+      ` L ${pts[pts.length-1].x.toFixed(1)},${(PAD.top+iH).toFixed(1)} Z`
     : "";
 
+  const totalLen = Math.round(pts.reduce((sum, p, i) => {
+    if (i === 0) return 0;
+    const dx = p.x - pts[i - 1].x;
+    const dy = p.y - pts[i - 1].y;
+    return sum + Math.sqrt(dx * dx + dy * dy);
+  }, 0)) + 50;
+
   const dots = points.map((p, i) => `
-    <circle cx="${xPos(i).toFixed(1)}" cy="${yPos(p.pct).toFixed(1)}"
+    <circle cx="${pts[i].x.toFixed(1)}" cy="${pts[i].y.toFixed(1)}"
             r="${p.isToday ? 5 : 3.5}"
-            fill="${p.isToday ? '#60a5fa' : '#93c5fd'}"
+            fill="${p.isToday ? lineColor : (msId ? '#86efac' : '#93c5fd')}"
             stroke="rgba(255,255,255,0.90)" stroke-width="1.5">
       <title>${p.label}: ${p.pct}%${p.title ? ` – ${p.title}` : ""}</title>
-    </circle>`).join("");
+    </circle>
+    ${p.isToday ? `
+      <circle cx="${pts[i].x.toFixed(1)}" cy="${pts[i].y.toFixed(1)}"
+              r="8" fill="none" stroke="${lineColor}" stroke-width="1" opacity="0.4">
+        <animate attributeName="r" values="5;10;5" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    ` : ""}
+  `).join("");
 
-  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
-       style="width:100%;height:auto;display:block;overflow:visible">
-    <defs><linearGradient id="msGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(96,165,250,0.40)"/>
-      <stop offset="100%" stop-color="rgba(96,165,250,0.00)"/>
-    </linearGradient></defs>
-    ${grid}
-    ${areaPath ? `<path d="${areaPath}" fill="url(#msGrad)"/>` : ""}
-    <path d="${linePath}" fill="none" stroke="#60a5fa" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round"/>
-    ${dots}${xLabels}
-  </svg>`;
+  const gradId = msId ? "msGradGreen" : "msGradBlue";
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+         style="width:100%;height:auto;display:block;overflow:visible">
+      <defs>
+        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${gradStart}"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+        </linearGradient>
+      </defs>
+
+      ${grid}
+
+      ${areaPath ? `
+        <path d="${areaPath}" fill="url(#${gradId})" opacity="0">
+          <animate attributeName="opacity" from="0" to="1" dur="0.8s" fill="freeze" begin="0.3s"/>
+        </path>
+      ` : ""}
+
+      <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="${totalLen}" stroke-dashoffset="${totalLen}">
+        <animate attributeName="stroke-dashoffset" from="${totalLen}" to="0"
+                 dur="1.2s" fill="freeze"/>
+      </path>
+
+      ${dots}
+      ${xLabels}
+    </svg>
+  `;
 }
 
-/* =========================================================
-   RENDER HELPERS
-========================================================= */
 function showLoading() {
   const c = document.getElementById("weekPlaceholder");
   if (c) c.innerHTML = `
     <div class="analytics-loading">
       <div class="analytics-spinner"></div>
       <span>Kobler til database…</span>
-    </div>`;
+    </div>
+  `;
 }
 
 function animateBar(id, pct) {
@@ -444,35 +614,42 @@ function animateBar(id, pct) {
   }));
 }
 
-/* =========================================================
-   RENDER WIDGET
-========================================================= */
 function renderWidget() {
   const container = document.getElementById("weekPlaceholder");
   if (!container) return;
 
-  const { progressPct, daysUsed, daysLeft, totalFiles,
-          filesThisWeek, messagesCount, milestones, milestonesDone,
-          milestonesTotal, currentMilestone, nextMilestoneDate,
-          milestoneRisk, milestoneRiskLabel, activityLabel, activityTone,
-          summaryText, alerts } = _state;
+  const {
+    progressPct,
+    daysUsed,
+    daysLeft,
+    milestones,
+    milestonesDone,
+    milestonesTotal,
+    nextMilestoneDate,
+    milestoneRisk,
+    milestoneRiskLabel,
+    activityLabel,
+    activityTone,
+    summaryText,
+    alerts
+  } = _state;
+
   const pct = progressPct || 0;
 
-  // Mohamed – finn aktiv milepæl (første ikke-fullførte)
   const activeMilestone = milestones.find(m => !m.done);
-  const activeTasks     = activeMilestone
+
+  const activeTasks = activeMilestone
     ? (_state.tasksByMilestone?.[activeMilestone.id] || { total: 0, done: 0 })
     : { total: 0, done: 0 };
-  const activeTaskPct   = activeTasks.total > 0
-    ? Math.round((activeTasks.done / activeTasks.total) * 100) : 0;
 
-  // Mohamed – bar vises alltid rett over milepæl-lista, renamed fra "Tasks" til "Oppgaver"
+  const activeTaskPct = activeTasks.total > 0
+    ? Math.round((activeTasks.done / activeTasks.total) * 100)
+    : 0;
+
   const activeTaskBar = activeMilestone ? `
     <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;
-                  color:rgba(255,255,255,0.55);margin-bottom:5px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:5px">
         <span>Oppgaver i <strong style="color:rgba(255,255,255,0.85)">${activeMilestone.title}</strong></span>
-        <!-- Mohamed – byttet fra "Tasks i" til "Oppgaver i" -->
         <span>${activeTasks.done} / ${activeTasks.total > 0 ? activeTasks.total : "0"} (${activeTaskPct}%)</span>
       </div>
       <div style="background:rgba(255,255,255,0.08);border-radius:999px;height:10px;overflow:hidden">
@@ -481,16 +658,17 @@ function renderWidget() {
                     border-radius:999px;transition:width 0.7s ease;
                     box-shadow:0 0 10px rgba(74,222,128,0.45)"></div>
       </div>
-    </div>` : "";
+    </div>
+  ` : "";
 
-  // Mohamed – milepæl-liste
   const milestonesHtml = milestones.length > 0
     ? milestones.map((m, i) => `
-        <div class="milestone-row ${m.done ? 'done' : ''}">
-          <span class="milestone-check">${m.done ? '✓' : '○'}</span>
-          <span class="milestone-title">${m.title || `Milepæl ${i+1}`}</span>
-          ${m.date ? `<span class="milestone-date">${formatDateNo(m.date)}</span>` : ""}
-        </div>`).join("")
+      <div class="milestone-row ${m.done ? "done" : ""}">
+        <span class="milestone-check">${m.done ? "✓" : "○"}</span>
+        <span class="milestone-title">${m.title || `Milepæl ${i + 1}`}</span>
+        ${m.date ? `<span class="milestone-date">${formatDateNo(m.date)}</span>` : ""}
+      </div>
+    `).join("")
     : `<div style="font-size:12px;color:rgba(255,255,255,0.45)">Ingen milepæler lagt inn ennå. Trykk Rediger for å legge til.</div>`;
 
   const alertsHtml = alerts.length
@@ -517,7 +695,6 @@ function renderWidget() {
       </div>
 
       <div class="analytics-grid-2">
-        <!-- Mohamed – endret fra å vise total milepæl-% til å vise task-info fra grønn bar -->
         <div class="analytics-mini-card tone-${milestoneRisk}">
           <div class="analytics-mini-title">Nåværende milepæl</div>
           ${activeMilestone ? `
@@ -530,6 +707,7 @@ function renderWidget() {
             <div class="analytics-mini-meta">Prosjektet er ferdig</div>
           `}
         </div>
+
         <div class="analytics-mini-card tone-${milestoneRisk}">
           <div class="analytics-mini-title">Risiko</div>
           <div class="analytics-mini-big">${milestoneRiskLabel}</div>
@@ -538,18 +716,38 @@ function renderWidget() {
         </div>
       </div>
 
-      <!-- Mohamed – task-bar rett over milepæl-lista -->
       ${activeTaskBar}
+
       <div class="analytics-milestone-box" style="margin-top:0">
         <div class="analytics-milestone-title" style="margin-bottom:8px">Milepæler (${milestonesDone}/${milestonesTotal})</div>
         <div class="analytics-milestone-list">${milestonesHtml}</div>
       </div>
 
-      <!-- Mohamed – endret tittel fra "denne uken" til "over tid" -->
       <div class="analytics-chart-wrap">
-        <div class="analytics-chart-title">Milepæl-fremgang over tid</div>
-        <div class="analytics-chart-inner">${buildProgressChart()}</div>
-        <p class="analytics-chart-sub">Blå linje viser total prosjektfremgang – stiger når en milepæl fullføres</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="analytics-chart-title" id="chartTitle">
+            ${_selectedChartMs ? `Oppgaver – ${milestones.find(m => m.id === _selectedChartMs)?.title || ""}` : "Milepæl-fremgang over tid"}
+          </div>
+
+          <select id="chartMsSelect" style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:8px;
+            border:1px solid rgba(96,165,250,0.45);background:#1a2540;color:rgba(255,255,255,0.90);
+            outline:none;cursor:pointer;max-width:150px">
+            <option value="" style="background:#1a2540" ${!_selectedChartMs ? "selected" : ""}>Total fremgang</option>
+            ${milestones.map(m => `
+              <option value="${m.id}" style="background:#1a2540;color:#fff" ${_selectedChartMs === m.id ? "selected" : ""}>
+                ${m.done ? "✓" : "○"} ${m.title}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+
+        <div class="analytics-chart-inner" id="chartInner">${buildProgressChart(_selectedChartMs)}</div>
+
+        <p class="analytics-chart-sub" id="chartSub">
+          ${_selectedChartMs
+            ? "Viser estimert oppgavefremdrift for valgt milepæl"
+            : "Blå linje viser total prosjektfremgang – stiger når en milepæl fullføres"}
+        </p>
       </div>
 
       <div class="analytics-alert-box">
@@ -557,35 +755,71 @@ function renderWidget() {
         <div class="analytics-alert-list">${alertsHtml}</div>
       </div>
 
-      <!-- Mohamed – fjernet "Totale filer på prosjektet", erstattet med neste milepæl-info -->
       <div class="analytics-footer-stats">
-        <span>Neste milepæl: <strong>${activeMilestone ? `${activeMilestone.title} – ${formatDateNo(activeMilestone.date)}` : "Alle milepæler fullført ✓"}</strong></span>
+        <span>Neste milepæl:
+          <strong>
+            ${activeMilestone
+              ? `${activeMilestone.title} – ${formatDateNo(activeMilestone.date)}`
+              : "Alle milepæler fullført ✓"}
+          </strong>
+        </span>
       </div>
 
-    </div>`;
+    </div>
+  `;
 
   animateBar("heroProgressBar", pct);
+
   const heroPctEl = document.getElementById("heroProgressPct");
   if (heroPctEl) heroPctEl.textContent = pct + "%";
+
+  const sel = document.getElementById("chartMsSelect");
+
+  if (sel) {
+    sel.addEventListener("change", () => {
+      _selectedChartMs = sel.value || null;
+
+      const inner = document.getElementById("chartInner");
+      const title = document.getElementById("chartTitle");
+      const sub = document.getElementById("chartSub");
+      const ms = _selectedChartMs
+        ? milestones.find(m => m.id === _selectedChartMs)
+        : null;
+
+      if (inner) inner.innerHTML = buildProgressChart(_selectedChartMs);
+
+      if (title) {
+        title.textContent = _selectedChartMs
+          ? `Oppgaver – ${ms?.title || ""}`
+          : "Milepæl-fremgang over tid";
+      }
+
+      if (sub) {
+        sub.textContent = _selectedChartMs
+          ? `Viser estimert oppgavefremdrift for "${ms?.title || ""}"`
+          : "Blå linje viser total prosjektfremgang – stiger når en milepæl fullføres";
+      }
+    });
+  }
 }
 
-/* =========================================================
-   ADMIN MODAL
-   Mohamed – fjernet emoji fra tittelen, fjernet ukesnotat-felt
-========================================================= */
 function openAdminModal() {
   const existing = document.getElementById("adminModal");
-  if (existing) { existing.remove(); return; }
+  if (existing) {
+    existing.remove();
+    return;
+  }
 
   const milestones = _state.milestones || [];
+
   const modal = document.createElement("div");
   modal.id = "adminModal";
+
   modal.innerHTML = `
     <div class="admin-backdrop"></div>
+
     <div class="admin-panel">
       <div class="admin-title">Rediger prosjekt</div>
-
-      <!-- Mohamed – ukesnotat fjernet, kan implementeres senere -->
 
       <label class="admin-label">Prosjektstart</label>
       <input id="adminStart" type="date" class="admin-input"
@@ -608,9 +842,17 @@ function openAdminModal() {
             <input type="checkbox" class="admin-ms-check" ${m.done ? "checked" : ""}/>
             <input type="text" class="admin-input" value="${m.title || ""}" placeholder="Milepæl-tittel…"/>
             <input type="date" class="admin-input admin-ms-date"
-                   value="${m.date ? (() => { try { const d = m.date?.toDate ? m.date.toDate() : new Date(m.date); return d.toISOString().slice(0,10); } catch(e){ return ""; }})() : ""}"/>
+                   value="${m.date ? (() => {
+                     try {
+                       const d = m.date?.toDate ? m.date.toDate() : new Date(m.date);
+                       return d.toISOString().slice(0,10);
+                     } catch(e) {
+                       return "";
+                     }
+                   })() : ""}"/>
             <button class="admin-ms-remove" type="button">✕</button>
-          </div>`).join("")}
+          </div>
+        `).join("")}
       </div>
 
       <button id="adminAddMilestone" class="admin-btn" type="button">+ Legg til milepæl</button>
@@ -619,13 +861,15 @@ function openAdminModal() {
         <button id="adminSave" class="admin-btn primary">Lagre til Firebase</button>
         <button id="adminClose" class="admin-btn">Avbryt</button>
       </div>
+
       <p id="adminStatus" class="admin-status"></p>
-    </div>`;
+    </div>
+  `;
 
   document.body.appendChild(modal);
 
   modal.querySelector(".admin-backdrop").addEventListener("click", () => modal.remove());
-  document.getElementById("adminClose").addEventListener("click",  () => modal.remove());
+  document.getElementById("adminClose").addEventListener("click", () => modal.remove());
 
   modal.querySelectorAll(".admin-ms-remove").forEach(btn => {
     btn.addEventListener("click", () => btn.closest(".admin-milestone-row").remove());
@@ -633,13 +877,16 @@ function openAdminModal() {
 
   document.getElementById("adminAddMilestone").addEventListener("click", () => {
     const list = document.getElementById("adminMilestoneList");
-    const row  = document.createElement("div");
+    const row = document.createElement("div");
+
     row.className = "admin-milestone-row";
     row.innerHTML = `
       <input type="checkbox" class="admin-ms-check"/>
       <input type="text" class="admin-input" placeholder="Milepæl-tittel…"/>
       <input type="date" class="admin-input admin-ms-date"/>
-      <button class="admin-ms-remove" type="button">✕</button>`;
+      <button class="admin-ms-remove" type="button">✕</button>
+    `;
+
     list.appendChild(row);
     row.querySelector(".admin-ms-remove").addEventListener("click", () => row.remove());
   });
@@ -649,15 +896,17 @@ function openAdminModal() {
     const duration = parseInt(document.getElementById("adminDuration").value, 10);
     const statusEl = document.getElementById("adminStatus");
 
-    const rows       = document.querySelectorAll(".admin-milestone-row");
+    const rows = document.querySelectorAll(".admin-milestone-row");
     const milestones = [];
+
     rows.forEach((row, i) => {
-      const title   = row.querySelector("input[type=text]")?.value.trim();
-      const done    = row.querySelector(".admin-ms-check")?.checked || false;
+      const title = row.querySelector("input[type=text]")?.value.trim();
+      const done = row.querySelector(".admin-ms-check")?.checked || false;
       const dateVal = row.querySelector(".admin-ms-date")?.value;
+
       if (title) {
         milestones.push({
-          id:    `ms_${i}`,
+          id: `ms_${i}`,
           title,
           done,
           date: dateVal ? Timestamp.fromDate(new Date(dateVal)) : null
@@ -665,24 +914,29 @@ function openAdminModal() {
       }
     });
 
-    const nextMs   = milestones.find(m => !m.done);
+    const nextMs = milestones.find(m => !m.done);
     const goalText = nextMs?.title || (milestones.length > 0 ? "Alle milepæler fullført ✓" : _state.goalText);
 
-    if (!_currentProjectId) { statusEl.textContent = "Ingen prosjekt valgt."; return; }
+    if (!_currentProjectId) {
+      statusEl.textContent = "Ingen prosjekt valgt.";
+      return;
+    }
 
     statusEl.textContent = "Lagrer…";
+
     try {
       await setDoc(doc(db, "projects", _currentProjectId), {
-        startedAt:    startStr ? Timestamp.fromDate(new Date(startStr)) : serverTimestamp(),
+        startedAt: startStr ? Timestamp.fromDate(new Date(startStr)) : serverTimestamp(),
         durationDays: isNaN(duration) ? 90 : duration,
         milestones,
         goalText,
-        updatedAt:    serverTimestamp()
+        updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // Lagre dagens progress-snapshot for grafen
       const snapPct = milestones.length > 0
-        ? Math.round(milestones.filter(m => m.done).length / milestones.length * 100) : 0;
+        ? Math.round(milestones.filter(m => m.done).length / milestones.length * 100)
+        : 0;
+
       await setDoc(
         doc(db, "projects", _currentProjectId, "progressHistory", getTodayKey()),
         { pct: snapPct, savedAt: serverTimestamp() },
@@ -691,6 +945,7 @@ function openAdminModal() {
 
       statusEl.style.color = "#86efac";
       statusEl.textContent = "✓ Lagret!";
+
       setTimeout(() => modal.remove(), 900);
     } catch (err) {
       statusEl.style.color = "#f87171";
@@ -702,9 +957,6 @@ function openAdminModal() {
 
 window.openAdminModal = openAdminModal;
 
-/* =========================================================
-   INIT
-========================================================= */
 function initAnalytics() {
   if (!document.getElementById("adminModalStyles")) {
     const s = document.createElement("style");
@@ -723,7 +975,6 @@ function initAnalytics() {
       .admin-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,0.55); margin-top:4px; }
       .admin-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.92); font-size:13px; outline:none; font-family:inherit; }
       .admin-input:focus { border-color:rgba(96,165,250,0.60); }
-      .admin-textarea { resize:vertical; min-height:72px; }
       .admin-actions { display:flex; gap:8px; margin-top:6px; }
       .admin-btn { flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.88); font-size:13px; font-weight:600; cursor:pointer; }
       .admin-btn.primary { background:#3b82f6; border-color:#60a5fa; color:#fff; }
@@ -750,6 +1001,7 @@ function initAnalytics() {
   }
 
   showLoading();
+
   const projectId = window.currentProjectId;
   if (projectId) startLiveAnalytics(projectId);
 
