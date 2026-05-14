@@ -42,7 +42,7 @@ const newFolderBtn = document.getElementById("newFolderBtn");
 
 let currentProjectId = null;
 let currentFolderId = null;
-let currentPath = [{ id: null, name: "Home" }];
+let currentPath = [{ id: null, name: "Hjem" }];
 
 function formatDate(timestamp) {
   if (!timestamp) return "-";
@@ -427,7 +427,7 @@ window.addEventListener("projectChanged", async (event) => {
   currentProjectId = event.detail.projectId;
   await ensureFirebaseLogin();
   currentFolderId = null;
-  currentPath = [{ id: null, name: "Home" }];
+  currentPath = [{ id: null, name: "Hjem" }];
   renderBreadcrumbs();
   await loadContents();
 });
@@ -438,7 +438,7 @@ async function initFileManager() {
   if (window.currentProjectId) {
     currentProjectId = window.currentProjectId;
     currentFolderId = null;
-    currentPath = [{ id: null, name: "Home" }];
+    currentPath = [{ id: null, name: "Hjem" }];
     renderBreadcrumbs();
     await loadContents();
   }
