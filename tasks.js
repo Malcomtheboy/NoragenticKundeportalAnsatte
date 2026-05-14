@@ -153,10 +153,14 @@ function renderTasks(snapshot) {
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
 
-    row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
+      row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
+      const confirmed = confirm("Er du sikker på at du vil slette denne oppgaven?");
+      if (!confirmed) return;
+
       await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
+
   });
 
   if (taskSectionTitle) {
