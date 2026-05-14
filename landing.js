@@ -29,6 +29,27 @@ let allNotificationsExpanded = false;
 /* =========================================================
    HELPERS
 ========================================================= */
+function getMessageDate(message) {
+  const value = message.createdAt || message.time;
+
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (value.seconds) return new Date(value.seconds * 1000);
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getLastSeenMessageAt(userId, projectId) {
+  const key = `last_seen_message_${userId}_${projectId}`;
+  return Number(localStorage.getItem(key) || 0);
+}
+
+function saveLastSeenMessageAt(userId, projectId, timestamp = Date.now()) {
+  const key = `last_seen_message_${userId}_${projectId}`;
+  localStorage.setItem(key, String(timestamp));
+}
+
 function escapeHtml(text) {
   if (text === null || text === undefined) return "";
 
@@ -408,6 +429,10 @@ function startChatNotifications(visibleProjects, userId) {
 
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
       const projectInitialized = initializedChatProjects.has(project.id);
+      const lastSeenAt = getLastSeenMessageAt(userId, project.id);
+
+      let latestUnreadMessage = null;
+      let latestUnreadTime = 0;
 
       snapshot.docChanges().forEach(change => {
         if (change.type !== "added") return;
@@ -417,12 +442,28 @@ function startChatNotifications(visibleProjects, userId) {
           ...change.doc.data()
         };
 
-        if (!projectInitialized) return;
         if (message.uid === userId) return;
 
-        renderChatNotification(message, project);
-        showDesktopNotification(message, project);
+        const messageDate = getMessageDate(message);
+        const messageTime = messageDate ? messageDate.getTime() : 0;
+
+        if (!messageTime) return;
+
+        if (projectInitialized) {
+          renderChatNotification(message, project);
+          showDesktopNotification(message, project);
+          return;
+        }
+
+        if (messageTime > lastSeenAt && messageTime > latestUnreadTime) {
+          latestUnreadMessage = message;
+          latestUnreadTime = messageTime;
+        }
       });
+
+      if (!projectInitialized && latestUnreadMessage) {
+        renderChatNotification(latestUnreadMessage, project);
+      }
 
       initializedChatProjects.add(project.id);
     }, (error) => {
@@ -500,8 +541,12 @@ function renderProjects(projects, userId) {
     card.addEventListener("click", (e) => {
       if (e.target.closest(".hide-project-btn")) return;
 
-      localStorage.setItem("selected_project_id", card.dataset.projectId);
-      window.location.href = "index.html";
+        const projectId = card.dataset.projectId;
+
+        localStorage.setItem("selected_project_id", projectId);
+        saveLastSeenMessageAt(userId, projectId);
+
+        window.location.href = "index.html";
     });
   });
 
