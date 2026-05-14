@@ -18,6 +18,11 @@ const projectName = document.getElementById("projectName");
 const projectGoal = document.getElementById("projectGoal");
 const projectDescription = document.getElementById("projectDescription");
 const customerDescription = document.getElementById("customerDescription");
+const customerDescriptionModal = document.getElementById("customerDescriptionModal");
+const customerDescriptionExpanded = document.getElementById("customerDescriptionExpanded");
+const expandCustomerDescriptionBtn = document.getElementById("expandCustomerDescription");
+const closeCustomerDescriptionBtn = document.getElementById("closeCustomerDescription");
+
 
 /* =========================================================
    AUTH → HENT PROSJEKTER
@@ -131,21 +136,69 @@ function renderProjectSelector(projects) {
   });
 }
 
+async function getCompanyIdForProject(projectId) {
+  if (!projectId) return null;
+
+  const projectSnap = await getDoc(doc(db, "projects", projectId));
+  if (!projectSnap.exists()) return null;
+
+  const projectData = projectSnap.data();
+  const customerIds = Array.isArray(projectData.customerIds)
+    ? projectData.customerIds
+    : [];
+
+  if (!customerIds.length) return null;
+
+  for (const customerId of customerIds) {
+    const customerSnap = await getDoc(doc(db, "users", customerId));
+    if (!customerSnap.exists()) continue;
+
+    const companyId = customerSnap.data().companyId || null;
+    if (companyId) return companyId;
+  }
+
+  return null;
+}
+
+
+function syncCustomerDescriptionExpanded() {
+  if (!customerDescription || !customerDescriptionExpanded) return;
+  customerDescriptionExpanded.textContent = customerDescription.textContent || "";
+}
+
+
+
 async function loadDescriptions(projectId) {
   if (!projectId || !projectDescription || !customerDescription) return;
 
   try {
-    const snap = await getDoc(doc(db, "projects", projectId));
-    const data = snap.exists() ? snap.data() : {};
+    const projectSnap = await getDoc(doc(db, "projects", projectId));
+    const projectData = projectSnap.exists() ? projectSnap.data() : {};
 
     projectDescription.textContent =
-      data.prosjektBeskrivelse || data.description || "";
+      projectData.prosjektBeskrivelse || projectData.description || "";
+
+    const companyId = await getCompanyIdForProject(projectId);
+
+       if (!companyId) {
+      customerDescription.textContent = "";
+      syncCustomerDescriptionExpanded();
+      return;
+    }
+
+
+    const companySnap = await getDoc(doc(db, "companies", companyId));
+    const companyData = companySnap.exists() ? companySnap.data() : {};
+
     customerDescription.textContent =
-      data.kundeBeskrivelse || data.customerDescription || "";
+      companyData.kundeBeskrivelse || companyData.customerDescription || "";
+          syncCustomerDescriptionExpanded();
+
   } catch (err) {
     console.error("Kunne ikke laste beskrivelser:", err);
   }
 }
+
 
 async function saveDescriptions(projectId) {
   if (!projectId || !projectDescription || !customerDescription) return;
@@ -155,15 +208,28 @@ async function saveDescriptions(projectId) {
       doc(db, "projects", projectId),
       {
         prosjektBeskrivelse: projectDescription.textContent.trim(),
-        kundeBeskrivelse: customerDescription.textContent.trim(),
         updatedAt: serverTimestamp()
       },
       { merge: true }
     );
+
+    const companyId = await getCompanyIdForProject(projectId);
+
+    if (companyId) {
+      await setDoc(
+        doc(db, "companies", companyId),
+        {
+          kundeBeskrivelse: customerDescription.textContent.trim(),
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+    }
   } catch (err) {
     console.error("Kunne ikke lagre beskrivelser:", err);
   }
 }
+
 
 
 /* =========================================================
@@ -223,3 +289,30 @@ projectDescription?.addEventListener("blur", () => {
 customerDescription?.addEventListener("blur", () => {
   saveDescriptions(window.currentProjectId);
 });
+
+expandCustomerDescriptionBtn?.addEventListener("click", () => {
+  syncCustomerDescriptionExpanded();
+  customerDescriptionModal?.classList.add("active");
+});
+
+closeCustomerDescriptionBtn?.addEventListener("click", () => {
+  customerDescriptionModal?.classList.remove("active");
+  saveDescriptions(window.currentProjectId);
+});
+
+customerDescriptionModal?.addEventListener("click", (e) => {
+  if (e.target === customerDescriptionModal) {
+    customerDescriptionModal.classList.remove("active");
+    saveDescriptions(window.currentProjectId);
+  }
+});
+
+customerDescriptionExpanded?.addEventListener("input", () => {
+  if (!customerDescription) return;
+  customerDescription.textContent = customerDescriptionExpanded.textContent || "";
+});
+
+customerDescriptionExpanded?.addEventListener("blur", () => {
+  saveDescriptions(window.currentProjectId);
+});
+

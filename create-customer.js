@@ -124,6 +124,7 @@ async function createCompany() {
   try {
     await addDoc(collection(db, "companies"), {
       name: companyName,
+      kundeBeskrivelse: "",
       createdAt: serverTimestamp(),
       createdBy: localStorage.getItem("employee_uid") || null
     });

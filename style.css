@@ -848,6 +848,14 @@ body{
   background:rgba(255,255,255,0.14);
 }
 
+.customer-description-expanded{
+  flex:1;
+  margin:16px;
+  min-height:auto;
+  overflow:auto;
+}
+
+
 .msg {
   display:flex;
   flex-direction:column;

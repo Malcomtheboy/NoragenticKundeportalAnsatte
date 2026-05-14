@@ -59,17 +59,17 @@ function isUserOnProject(user, projectId) {
 ========================================================= */
 function renderLoading() {
   customerPlaceholder.className = "team-loading";
-  customerPlaceholder.innerHTML = "Laster kunder...";
+  customerPlaceholder.innerHTML = "Laster kontaktpersoner...";
 }
 
 function renderEmpty() {
   customerPlaceholder.className = "team-empty";
-  customerPlaceholder.innerHTML = "Ingen kunder på prosjektet.";
+  customerPlaceholder.innerHTML = "Ingen kontaktpersoner på prosjektet.";
 }
 
 function renderError() {
   customerPlaceholder.className = "team-error";
-  customerPlaceholder.innerHTML = "Kunne ikke laste kunder.";
+  customerPlaceholder.innerHTML = "Kunne ikke laste kontaktpersoner.";
 }
 
 /* =========================================================
@@ -205,7 +205,8 @@ async function loadCustomerOverview(projectId) {
    MODAL
 ========================================================= */
 function openCustomerModal() {
-  customerProjectSelectModal.innerHTML = `<option value="">Velg kunde</option>`;
+  customerProjectSelectModal.innerHTML = `<option value="">Velg kontaktperson</option>`;
+
 
   const available = allCustomers.filter(
     user => !isUserOnProject(user, currentProjectId)
@@ -219,7 +220,7 @@ function openCustomerModal() {
   });
 
   if (!available.length) {
-    customerProjectModalState.textContent = "Alle kunder er lagt til.";
+    customerProjectModalState.textContent = "Alle kontaktpersoner er lagt til.";
   } else {
     customerProjectModalState.textContent = "";
   }
@@ -238,7 +239,7 @@ async function addCustomerToProject() {
   const userId = customerProjectSelectModal.value;
 
   if (!userId) {
-    customerProjectModalState.textContent = "Velg kunde.";
+    customerProjectModalState.textContent = "Velg kontaktperson.";
     return;
   }
 

@@ -148,24 +148,24 @@
         <section class="panel card">
           <div class="team-header">
             <div>
-              <div class="section-title">Kunder på prosjekt</div>
-              <p class="section-description">Oversikt over hvilke kunder som er tilknyttet prosjektet.</p>
+              <div class="section-title">Kontaktpersoner på prosjekt</div>
+              <p class="section-description">Oversikt over hvilke kontaktpersoner som er tilknyttet prosjektet.</p>
             </div>
-            <button id="addCustomerToProjectBtn" class="btn small" type="button">+ Legg til kunde</button>
+            <button id="addCustomerToProjectBtn" class="btn small" type="button">+ Legg til kontaktperson</button>
           </div>
-          <div id="customerPlaceholder" class="team-loading">Laster kunder...</div>
+          <div id="customerPlaceholder" class="team-loading">Laster kontaktpersoner...</div>
         </section>
 
         <div id="addCustomerModal" class="team-modal is-hidden">
           <div class="team-modal-card">
             <div class="team-modal-head">
-              <div class="team-modal-title">Legg til kunde</div>
+              <div class="team-modal-title">Legg til kontaktperson</div>
               <button id="closeCustomerProjectModalBtn" class="team-modal-close" type="button">✕</button>
             </div>
             <div class="team-modal-body">
-              <p class="team-modal-text">Velg en kunde som skal kobles til valgt prosjekt.</p>
+              <p class="team-modal-text">Velg en kontaktperson som skal kobles til valgt prosjekt.</p>
               <select id="customerProjectSelectModal" class="team-select">
-                <option value="">Velg kunde</option>
+                <option value="">Velg kontaktperson</option>
               </select>
               <div id="customerProjectModalState" class="team-modal-state"></div>
             </div>
@@ -182,11 +182,16 @@
           <div id="projectDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
         </section>
 
-        <section class="panel card">
-          <div class="section-title">Kundebeskrivelse</div>
-          <p class="section-description">Info om kunden og behovene deres.</p>
-          <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
-        </section>
+       <section class="panel card">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div class="section-title" style="margin-bottom:0">Kundebeskrivelse</div>
+    <button id="expandCustomerDescription" class="btn small" type="button">⤢</button>
+  </div>
+  <p class="section-description">Info om kunden og behovene deres.</p>
+  <div id="customerDescription" class="editable-box" contenteditable="true" data-placeholder="Klikk her og skriv..."></div>
+</section>
+
+
 
         <section class="panel card">
           <div class="section-title">Gruppechat</div>
@@ -206,6 +211,22 @@
       </div>
     </section>
   </main>
+
+    <div id="customerDescriptionModal" class="chat-modal">
+    <div class="chat-modal-content">
+      <div class="chat-header">
+        <span>Kundebeskrivelse</span>
+        <button id="closeCustomerDescription">✕</button>
+      </div>
+      <div
+        id="customerDescriptionExpanded"
+        class="editable-box customer-description-expanded"
+        contenteditable="true"
+        data-placeholder="Klikk her og skriv..."
+      ></div>
+    </div>
+  </div>
+
 
   <div id="chatModal" class="chat-modal">
     <div class="chat-modal-content">
