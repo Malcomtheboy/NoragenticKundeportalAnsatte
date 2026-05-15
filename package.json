@@ -5,33 +5,32 @@
   "main": "main.js",
   "author": "Noragentic",
   "license": "ISC",
-
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
   },
-
   "devDependencies": {
     "electron": "^41.3.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.8.1"
   },
-
   "build": {
-    "appId": "com.noragentic.portal",
+    "appId": "com.noragentic.ansattportal",
     "productName": "Noragentic Ansattportal",
-
     "directories": {
       "output": "dist"
     },
-
     "files": [
       "**/*",
       "!node_modules/.cache"
     ],
-
     "win": {
-      "target": "nsis",
-      "icon": "icon.ico"
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.business"
     }
   }
 }
