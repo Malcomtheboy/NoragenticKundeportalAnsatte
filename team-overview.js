@@ -19,6 +19,7 @@ const cancelEmployeeModalBtn = document.getElementById("cancelEmployeeModalBtn")
 const saveEmployeeBtn = document.getElementById("saveEmployeeBtn");
 const employeeSelect = document.getElementById("employeeSelect");
 const employeeModalState = document.getElementById("employeeModalState");
+const employeeSearchInput = document.getElementById("employeeSearchInput");
 
 let currentProjectId = null;
 let allEmployees = [];
@@ -213,24 +214,17 @@ async function loadTeamOverview(projectId) {
    MODAL
 ========================================================= */
 function openEmployeeModal() {
-  employeeSelect.innerHTML = `<option value="">Velg ansatt</option>`;
-
-  const available = allEmployees.filter(
-    user => !isUserOnProject(user, currentProjectId)
-  );
-
-  available.forEach(user => {
-    const option = document.createElement("option");
-    option.value = user.id;
-    option.textContent = `${user.name} (${user.email})`;
-    employeeSelect.appendChild(option);
-  });
-
-  if (!available.length) {
-    employeeModalState.textContent = "Alle ansatte er lagt til.";
+  if (employeeSearchInput) {
+    employeeSearchInput.value = "";
   }
 
+  renderEmployeeOptions();
+
   addEmployeeModal.classList.remove("is-hidden");
+
+  setTimeout(() => {
+    employeeSearchInput?.focus();
+  }, 0);
 }
 
 function closeEmployeeModal() {
@@ -295,7 +289,33 @@ async function removeEmployeeFromProject(userId, userName) {
 
   loadTeamOverview(currentProjectId);
 }
+function renderEmployeeOptions(searchTerm = "") {
+  employeeSelect.innerHTML = `<option value="">Velg ansatt</option>`;
 
+  const search = searchTerm.trim().toLowerCase();
+
+  const available = allEmployees.filter(user => {
+    if (isUserOnProject(user, currentProjectId)) return false;
+
+    const name = (user.name || "").toLowerCase();
+    const email = (user.email || "").toLowerCase();
+
+    return !search || name.includes(search) || email.includes(search);
+  });
+
+  available.forEach(user => {
+    const option = document.createElement("option");
+    option.value = user.id;
+    option.textContent = `${user.name} (${user.email})`;
+    employeeSelect.appendChild(option);
+  });
+
+  employeeModalState.textContent = available.length
+    ? ""
+    : search
+      ? "Ingen ansatte matcher søket."
+      : "Alle ansatte er lagt til.";
+}
 /* =========================================================
    EVENTS
 ========================================================= */
@@ -312,6 +332,9 @@ addEmployeeModal?.addEventListener("click", (e) => {
   if (e.target === addEmployeeModal) closeEmployeeModal();
 });
 
+employeeSearchInput?.addEventListener("input", () => {
+  renderEmployeeOptions(employeeSearchInput.value);
+});
 /* =========================================================
    INIT
 ========================================================= */
