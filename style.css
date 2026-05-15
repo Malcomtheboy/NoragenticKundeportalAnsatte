@@ -2240,3 +2240,38 @@ body{
   background:rgba(255,255,255,0.90);
   color:#141414;
 }
+
+/* =========================================================
+   CUSTOMER COMPANY SELECT
+========================================================= */
+
+#customerCompanySelect{
+  width:100%;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.92);
+  font-size:14px;
+  font-family:inherit;
+  outline:none;
+  transition:
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
+}
+
+#customerCompanySelect:hover{
+  background:rgba(255,255,255,0.08);
+  border-color:rgba(255,255,255,0.20);
+}
+
+#customerCompanySelect:focus{
+  border-color:rgba(126,162,255,0.55);
+  box-shadow:0 0 0 4px rgba(126,162,255,0.12);
+}
+
+#customerCompanySelect option{
+  background:#111827;
+  color:#ffffff;
+}
