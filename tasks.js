@@ -53,7 +53,7 @@ function renderMilestoneSelector(milestones) {
   }
 
   const options = milestones.length === 0
-    ? `<option value="">Ingen milepæler – legg til via Rediger</option>`
+    ? `<option value="">Ingen milepæler – legg til i ✏️</option>`
     : milestones.map(m =>
         `<option value="${m.id}" ${m.id === activeMilestoneId ? "selected" : ""}>
           ${m.done ? "✓ Fullført –" : "○ Aktiv –"} ${m.title}
@@ -63,7 +63,7 @@ function renderMilestoneSelector(milestones) {
   wrap.innerHTML = `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;
                 letter-spacing:.05em;color:rgba(255,255,255,0.50);margin-bottom:6px">
-      Legg til oppgave til milepæl:
+      Legg til task til milepæl:
     </div>
     <select id="milestoneSelector" style="
       width:100%; padding:8px 10px; border-radius:10px;
@@ -107,7 +107,7 @@ function renderTaskProgressBar(done, total) {
   barWrap.innerHTML = `
     <div style="display:flex;justify-content:space-between;font-size:11px;
                 color:rgba(255,255,255,0.55);margin-bottom:4px">
-      <span>Oppgaver fullført</span>
+      <span>Tasks fullført</span>
       <span>${done} / ${total} (${pct}%)</span>
     </div>
     <div style="background:rgba(255,255,255,0.08);border-radius:999px;height:6px;overflow:hidden">
@@ -146,25 +146,23 @@ function renderTasks(snapshot) {
     taskList.appendChild(row);
 
     row.querySelector("input").addEventListener("change", async (e) => {
+      const checked = e.target.checked;
+      // Mohamed – lagre completedAt når task fullføres, null når den gjenåpnes
       await updateDoc(doc(db, "projects", currentProjectId, "tasks", d.id), {
-        done: e.target.checked
+        done: checked,
+        completedAt: checked ? serverTimestamp() : null
       });
-      // Mohamed – sjekk om alle tasks er done etter hver endring
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
 
-      row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
-      const confirmed = confirm("Er du sikker på at du vil slette denne oppgaven?");
-      if (!confirmed) return;
-
+    row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
       await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
-
   });
 
   if (taskSectionTitle) {
-    taskSectionTitle.textContent = `Oppgaver (${doneCount}/${total} ferdig)`;
+    taskSectionTitle.textContent = `Tasks (${doneCount}/${total} ferdig)`;
   }
 
   renderTaskProgressBar(doneCount, total);
@@ -262,15 +260,16 @@ async function addTask() {
   if (!activeMilestoneId) { alert("Velg en milepæl først"); return; }
 
   const title = taskInput?.value.trim();
-  if (!title) { alert("Skriv oppgavenavn først"); return; }
+  if (!title) { alert("Skriv task-navn først"); return; }
 
   try {
     await addDoc(collection(db, "projects", projectId, "tasks"), {
       title,
-      done:      false,
-      delmalId:  activeMilestoneId,  // Mohamed – koblet til milepæl-ID
-      createdAt: serverTimestamp(),
-      createdBy: auth.currentUser?.uid || "unknown"
+      done:        false,
+      delmalId:    activeMilestoneId,  // Mohamed – koblet til milepæl-ID
+      completedAt: null,               // Mohamed – settes til serverTimestamp() når fullført
+      createdAt:   serverTimestamp(),
+      createdBy:   auth.currentUser?.uid || "unknown"
     });
     taskInput.value = "";
   } catch (err) {
