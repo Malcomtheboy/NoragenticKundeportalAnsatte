@@ -1,17 +1,33 @@
-import { auth, db } from "./firebase-auth.js";
+import { db } from "./firebase-auth.js";
+
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
+  getAuth,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 import {
   doc,
-  setDoc
+  setDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* =========================================================
-   ELEMENTER
-========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
+  authDomain: "noragenticportal.firebaseapp.com",
+  projectId: "noragenticportal",
+  storageBucket: "noragenticportal.firebasestorage.app",
+  messagingSenderId: "662374310916",
+  appId: "1:662374310916:web:a3a5d708bdd380a7210151",
+};
+
+const secondaryApp =
+  getApps().find(app => app.name === "SecondaryEmployeeApp") ||
+  initializeApp(firebaseConfig, "SecondaryEmployeeApp");
+
+const secondaryAuth = getAuth(secondaryApp);
+
 const createEmployeeBtn = document.getElementById("createEmployeeBtn");
 const modal = document.getElementById("createEmployeeModal");
 const closeBtn = document.getElementById("closeEmployeeModalX");
@@ -22,19 +38,12 @@ const nameInput = document.getElementById("employeeNameInput");
 const emailInput = document.getElementById("employeeEmailInput");
 const passwordInput = document.getElementById("employeePasswordInput");
 
-console.log("create-employee.js loaded");
-
-/* =========================================================
-   MODAL FUNKSJONER
-========================================================= */
 function openModal() {
-  if (!modal) return;
-  modal.classList.remove("is-hidden");
+  modal?.classList.remove("is-hidden");
 }
 
 function closeModal() {
-  if (!modal) return;
-  modal.classList.add("is-hidden");
+  modal?.classList.add("is-hidden");
 }
 
 function clearForm() {
@@ -43,76 +52,57 @@ function clearForm() {
   if (passwordInput) passwordInput.value = "";
 }
 
-/* =========================================================
-   EVENT LISTENERS
-========================================================= */
-if (createEmployeeBtn) {
-  createEmployeeBtn.addEventListener("click", openModal);
-}
+createEmployeeBtn?.addEventListener("click", openModal);
+closeBtn?.addEventListener("click", closeModal);
+cancelBtn?.addEventListener("click", closeModal);
 
-if (closeBtn) closeBtn.addEventListener("click", closeModal);
-if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+modal?.addEventListener("click", (e) => {
+  if (e.target === modal) closeModal();
+});
 
-if (modal) {
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeModal();
-  });
-}
+saveBtn?.addEventListener("click", async () => {
+  const name = nameInput?.value.trim();
+  const email = emailInput?.value.trim();
+  const password = passwordInput?.value.trim();
 
-/* =========================================================
-   OPPRETT ANSATT
-========================================================= */
-if (saveBtn) {
-  saveBtn.addEventListener("click", async () => {
-    console.log("clicked save employee");
+  if (!name || !email || !password) {
+    alert("Fyll ut alle feltene.");
+    return;
+  }
 
-    const name = nameInput?.value.trim();
-    const email = emailInput?.value.trim();
-    const password = passwordInput?.value.trim();
+  try {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Oppretter...";
 
-    if (!name || !email || !password) {
-      alert("Fyll ut alle feltene.");
-      return;
-    }
+    const userCredential = await createUserWithEmailAndPassword(
+      secondaryAuth,
+      email,
+      password
+    );
 
-    try {
-      saveBtn.disabled = true;
-      saveBtn.textContent = "Oppretter...";
+    const newUser = userCredential.user;
 
-      const ownerEmail = localStorage.getItem("employee_email");
-      const ownerPassword = prompt("Skriv inn ditt eget passord:");
+    await setDoc(doc(db, "users", newUser.uid), {
+      name,
+      email,
+      role: "employee",
+      projectIds: [],
+      createdAt: serverTimestamp(),
+      createdBy: localStorage.getItem("employee_uid") || null
+    });
 
-      if (!ownerPassword) {
-        alert("Du må skrive inn passordet ditt.");
-        return;
-      }
+    await signOut(secondaryAuth);
 
-      // Opprett bruker i Firebase Auth
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCred.user;
+    alert("Ansatt opprettet.");
 
-      // Lagre i Firestore uten prosjektkobling
-      await setDoc(doc(db, "users", newUser.uid), {
-        name,
-        email,
-        role: "employee",
-        projectIds: []
-      });
+    clearForm();
+    closeModal();
 
-      // Logg tilbake som owner
-      await signInWithEmailAndPassword(auth, ownerEmail, ownerPassword);
-
-      alert("Ansatt opprettet.");
-
-      clearForm();
-      closeModal();
-
-    } catch (err) {
-      console.error("Feil ved oppretting:", err);
-      alert("Kunne ikke opprette ansatt: " + err.message);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = "Opprett ansatt";
-    }
-  });
-}
+  } catch (err) {
+    console.error("Feil ved oppretting:", err);
+    alert("Kunne ikke opprette ansatt: " + err.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Opprett ansatt";
+  }
+});
