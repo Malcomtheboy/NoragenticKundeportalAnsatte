@@ -1,43 +1,91 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
+
+  <!-- Setter tegnsett til UTF-8 -->
   <meta charset="UTF-8" />
+
+  <!-- Sørger for responsivt design på mobil og mindre skjermer -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- Tittel som vises i nettleserfanen -->
   <title>Noragentic – Innlogging (Ansatt)</title>
+
+  <!-- Kobler til hovedstylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
+
+  <!-- Bakgrunnselement brukt til visuell styling -->
   <div class="bg"></div>
 
+  <!-- Wrapper for sentrering av login-kort -->
   <main class="auth-wrap">
+
+    <!-- Selve login-kortet -->
     <div class="auth-card">
+
+      <!-- Enkel Noragentic-logo -->
       <div class="auth-logo">N</div>
+
+      <!-- Overskrift -->
       <h1>Ansattportal</h1>
+
+      <!-- Kort forklaring til brukeren -->
       <p class="auth-sub">
         Logg inn for å få tilgang til prosjekter, kommunikasjon og administrasjon.
       </p>
 
+      <!-- Login-skjema -->
       <form id="loginForm" class="auth-form">
+
+        <!-- Inputfelt for e-post -->
         <label class="auth-field">
           <span>E-post</span>
-          <input id="email" type="email" placeholder="navn@noragentic.no" autocomplete="email" required />
+
+          <input
+            id="email"
+            type="email"
+            placeholder="navn@noragentic.no"
+            autocomplete="email"
+            required
+          />
         </label>
 
+        <!-- Inputfelt for passord -->
         <label class="auth-field">
           <span>Passord</span>
-          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+
+          <input
+            id="password"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
         </label>
 
-        <button class="btn primary" type="submit">Logg inn</button>
+        <!-- Knapp for å logge inn -->
+        <button class="btn primary" type="submit">
+          Logg inn
+        </button>
+
+        <!-- Felt for feilmeldinger og statusmeldinger -->
         <p class="auth-hint" id="hint"></p>
+
       </form>
 
+      <!-- Informasjon nederst på login-kortet -->
       <div class="auth-footer">
         Innloggingen er foreløpig satt opp som frontend-flyt og kan senere kobles til Firebase Authentication.
       </div>
+
     </div>
   </main>
 
-    <script type="module" src="employee-login.js"></script>
+  <!-- Kobler login-siden til JavaScript-filen for autentisering -->
+  <script type="module" src="employee-login.js"></script>
+
 </body>
 </html>
