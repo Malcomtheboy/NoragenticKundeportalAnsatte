@@ -329,7 +329,7 @@ async function loadContents() {
               <th>Type</th>
               <th>Lastet opp</th>
               <th>Av</th>
-              <th>Visibility</th>
+              <th>Synlighet</th>
               <th>Handling</th>
             </tr>
           </thead>
