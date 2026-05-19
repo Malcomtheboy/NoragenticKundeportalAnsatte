@@ -18,6 +18,8 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showError } from "./popup-manager.js";
+
 // Firebase-konfigurasjon
 const firebaseConfig = {
   apiKey: "AIzaSyB-0bWNNs2LgzAm48-Kymlzu1aEzWQXiNw",
@@ -86,7 +88,7 @@ saveBtn?.addEventListener("click", async () => {
 
   // Sjekker at alle feltene er fylt ut
   if (!name || !email || !password) {
-    alert("Fyll ut alle feltene.");
+    showError("Fyll ut alle felt");
     return;
   }
 
@@ -116,14 +118,14 @@ saveBtn?.addEventListener("click", async () => {
     // Logger ut sekundær auth slik at den ikke holder ny bruker aktiv
     await signOut(secondaryAuth);
 
-    alert("Ansatt opprettet.");
+    showError("Ansatt opprettet.");
 
     clearForm();
     closeModal();
 
   } catch (err) {
     console.error("Feil ved oppretting:", err);
-    alert("Kunne ikke opprette ansatt: " + err.message);
+    showError("Kunne ikke opprette ansatt.");
 
   } finally {
     saveBtn.disabled = false;

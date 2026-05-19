@@ -25,6 +25,8 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showError, showConfirm } from "./popup-manager.js";
+
 let currentUser = null;
 let currentProject = null;
 let currentProjectData = null;
@@ -254,7 +256,7 @@ async function saveEditedMessage(messageId, source) {
     editingMessageId = null;
   } catch (error) {
     console.error("Kunne ikke redigere melding:", error);
-    alert("Kunne ikke redigere melding.");
+    showError("Kunne ikke redigere melding.");
   }
 }
 
@@ -265,14 +267,14 @@ async function saveEditedMessage(messageId, source) {
  * @returns {Promise<void>}
  */
 async function deleteMessage(messageId) {
-  const confirmed = confirm("Vil du slette denne meldingen?");
+  const confirmed = await showConfirm("Vil du slette denne meldingen?");
   if (!confirmed) return;
 
   try {
     await deleteDoc(doc(db, "messages", messageId));
   } catch (error) {
     console.error("Kunne ikke slette melding:", error);
-    alert("Kunne ikke slette melding.");
+    showError("Kunne ikke slette melding.");
   }
 }
 
@@ -548,7 +550,7 @@ async function sendMessage(sourceInput) {
   if (!text || !currentUser || !currentProject || !currentProjectData) return;
 
   if (!hasProjectAccess(currentProjectData)) {
-    alert("Du har ikke tilgang til denne chatten.");
+    showError("Du har ikke tilgang til denne chatten.");
     return;
   }
 

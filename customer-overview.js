@@ -8,6 +8,7 @@ import {
   getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showConfirm } from "./popup-manager.js";
 /* =========================================================
    ELEMENTER
 ========================================================= */
@@ -268,7 +269,7 @@ await updateDoc(doc(db, "projects", currentProjectId), {
 }
 
 async function removeCustomerFromProject(userId, userName) {
-  if (!confirm(`Fjern ${userName}?`)) return;
+  if (!(await showConfirm(`Fjern ${userName}?`))) return;
 
   const user = allCustomers.find(u => u.id === userId);
   if (!user) return;

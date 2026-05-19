@@ -8,6 +8,8 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showError } from "./popup-manager.js";
+
 // Henter knapper og modal-elementer fra HTML
 const createProjectBtn = document.getElementById("createProjectBtn");
 const createProjectModal = document.getElementById("createProjectModal");
@@ -61,7 +63,7 @@ saveProjectBtn?.addEventListener("click", async () => {
 
   // Sjekker at alle feltene er fylt ut
   if (!title || !customer || !description) {
-    alert("Fyll ut alle feltene.");
+    showError("Fyll ut alle felt");
     return;
   }
 
@@ -93,7 +95,7 @@ saveProjectBtn?.addEventListener("click", async () => {
     });
 
     // Viser prosjekt-ID til brukeren
-    alert(`Prosjekt opprettet! Prosjekt-ID: ${docRef.id}`);
+    showError("Prosjekt opprettet!");
 
     // Nullstiller skjema og lukker modal
     clearProjectForm();

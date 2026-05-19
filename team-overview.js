@@ -13,6 +13,7 @@ import {
   getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showConfirm } from "./popup-manager.js";
 /* =========================================================
    ELEMENTER
 ========================================================= */
@@ -386,7 +387,7 @@ async function addEmployeeToProject() {
 async function removeEmployeeFromProject(userId, userName) {
 
   // Bekreftelse
-  if (!confirm(`Fjern ${userName}?`)) return;
+  if (!(await showConfirm(`Fjern ${userName}?`))) return;
 
   // Finn bruker
   const user = allEmployees.find(u => u.id === userId);

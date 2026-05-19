@@ -32,6 +32,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import { showError } from "./popup-manager.js";
 /* =========================================================
    DOM-REFERANSER
    Henter HTML-elementer én gang ved oppstart.
@@ -89,7 +90,7 @@ function renderMilestoneSelector(milestones) {
 
   // Bygg option-elementer – tom melding hvis ingen milepæler finnes ennå
   const options = milestones.length === 0
-    ? `<option value="">Ingen milepæler – legg til i ✏️</option>`
+    ? `<option value="">Ingen milepæler – legg til i "Rediger"</option>`
     : milestones.map(m =>
         `<option value="${m.id}" ${m.id === activeMilestoneId ? "selected" : ""}>
           ${m.done ? "✓ Fullført –" : "○ Aktiv –"} ${m.title}
@@ -377,11 +378,11 @@ function listenProject(projectId) {
  */
 async function addTask() {
   const projectId = window.currentProjectId || currentProjectId;
-  if (!projectId)         { alert("Fant ikke aktivt prosjekt-id"); return; }
-  if (!activeMilestoneId) { alert("Velg en milepæl først"); return; }
+  if (!projectId)         { showError("Fant ikke aktivt prosjekt-id"); return; }
+  if (!activeMilestoneId) { showError("Velg en milepæl først"); return; }
 
   const title = taskInput?.value.trim();
-  if (!title) { alert("Skriv task-navn først"); return; }
+  if (!title) { showError("Skriv task-navn først"); return; }
 
   try {
     await addDoc(collection(db, "projects", projectId, "tasks"), {

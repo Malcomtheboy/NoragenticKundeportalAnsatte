@@ -2290,3 +2290,91 @@ body{
   background:#111827;
   color:#ffffff;
 }
+
+.modal-input{
+  width:100%;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:white;
+  font-size:14px;
+  outline:none;
+}
+
+.modal-input:focus{
+  border-color:#2563eb;
+}
+
+/* =========================================================
+   POPUP MODAL
+========================================================= */
+
+.popup-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:99999;
+  backdrop-filter:blur(4px);
+}
+
+.popup-backdrop.hidden{
+  display:none;
+}
+
+.popup-card{
+  width:100%;
+  max-width:420px;
+  background:#111827;
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:18px;
+  padding:24px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+
+.popup-title{
+  font-size:20px;
+  font-weight:700;
+  color:white;
+  margin-bottom:12px;
+}
+
+.popup-message{
+  font-size:15px;
+  color:rgba(255,255,255,0.8);
+  line-height:1.5;
+}
+
+.popup-actions{
+  margin-top:24px;
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+}
+
+.popup-btn{
+  border:none;
+  border-radius:12px;
+  padding:10px 18px;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.popup-btn.primary{
+  background:#2563eb;
+  color:white;
+}
+
+.popup-btn.secondary{
+  background:rgba(255,255,255,0.08);
+  color:white;
+}
+
+.popup-btn.danger{
+  background:#dc2626;
+  color:white;
+}
