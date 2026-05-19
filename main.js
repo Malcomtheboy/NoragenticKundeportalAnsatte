@@ -7,6 +7,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
+    autoHideMenuBar: true,
     icon: path.join(__dirname, "assets/favicon.ico"),
     title: "Noragentic – Ansattportal",
     webPreferences: {
@@ -14,6 +15,9 @@ function createWindow() {
       nodeIntegration: false
     }
   });
+
+  // Completely remove menu bar
+  win.setMenuBarVisibility(false);
 
   win.loadFile(path.join(__dirname, "login.html"));
 }

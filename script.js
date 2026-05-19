@@ -64,8 +64,14 @@ if (logoutBtn) {
       console.error("Feil ved logout:", error);
     }
 
-    // Fjerner lagret frontend-data
-    localStorage.clear();
+    // Fjerner kun innloggings-/brukerdata, ikke varselhistorikk
+    [
+      "employee_uid",
+      "employee_name",
+      "employee_email",
+      "employee_role",
+      "selected_project_id"
+    ].forEach(key => localStorage.removeItem(key));
 
     // Sender brukeren tilbake til login-siden
     window.location.href = "login.html";
