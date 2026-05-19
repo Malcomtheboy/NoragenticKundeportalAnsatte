@@ -16,4 +16,4 @@ Ansatte kan ikke logge inn på kundesiden, og kunder kan ikke logge inn på ansa
 
 Når man oppretter ansatte eller kontaktpersoner, må man refreshe siden (ctrl + r) for å få dem opp som alternativer for å legge inn i "Ansatte på prosjekt" eller "Kontaktpersoner på prosjekt". 
 
-Ved oppretting av mappe under "Filer" seksjonen må siden refreshe (ctrl + r) for at den skal vises.
+Ved bruk av mappe under "Filer" seksjonen må siden refreshe (ctrl + r) for at de ulike funksjonene rundt mapper skal fungere.
