@@ -19,7 +19,6 @@ const saveProjectBtn = document.getElementById("saveProjectBtn");
 const projectTitleInput = document.getElementById("projectTitleInput");
 const projectCustomerInput = document.getElementById("projectCustomerInput");
 const projectDescriptionInput = document.getElementById("projectDescriptionInput");
-const projectGoalInput = document.getElementById("projectGoalInput");
 
 // Åpner modal for opprettelse av prosjekt
 function openProjectModal() {
@@ -36,7 +35,6 @@ function clearProjectForm() {
   if (projectTitleInput) projectTitleInput.value = "";
   if (projectCustomerInput) projectCustomerInput.value = "";
   if (projectDescriptionInput) projectDescriptionInput.value = "";
-  if (projectGoalInput) projectGoalInput.value = "";
 }
 
 // Åpner modal når brukeren trykker på "+ Prosjekt"
@@ -60,10 +58,9 @@ saveProjectBtn?.addEventListener("click", async () => {
   const title = projectTitleInput?.value.trim();
   const customer = projectCustomerInput?.value.trim();
   const description = projectDescriptionInput?.value.trim();
-  const goal = projectGoalInput?.value.trim();
 
   // Sjekker at alle feltene er fylt ut
-  if (!title || !customer || !description || !goal) {
+  if (!title || !customer || !description) {
     alert("Fyll ut alle feltene.");
     return;
   }
@@ -80,10 +77,6 @@ saveProjectBtn?.addEventListener("click", async () => {
       name: title,
       customerName: customer,
       description: description,
-
-      // Aktivt delmål / milepæl
-      goal: goal,
-      goalText: goal,
 
       // Standardverdier ved opprettelse
       status: "Aktiv",
