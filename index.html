@@ -387,6 +387,63 @@
             </button>
 
           </div>
+          
+<!-- Modal for å legge til kontaktperson -->
+<div id="addCustomerModal" class="team-modal is-hidden">
+
+  <div class="team-modal-card">
+
+    <div class="team-modal-head">
+
+      <div class="team-modal-title">
+        Legg til kontaktperson
+      </div>
+
+      <button
+        id="closeCustomerProjectModalBtn"
+        class="team-modal-close"
+        type="button"
+      >
+        ✕
+      </button>
+
+    </div>
+
+    <div class="team-modal-body">
+
+      <p class="team-modal-text">
+        Velg en kontaktperson som skal kobles til prosjektet.
+      </p>
+
+      <select id="customerProjectSelectModal" class="team-select">
+        <option value="">Velg kontaktperson</option>
+      </select>
+
+      <div id="customerProjectModalState" class="team-modal-state"></div>
+
+    </div>
+
+    <div class="team-modal-footer">
+
+      <button
+        id="cancelCustomerProjectModalBtn"
+        class="btn"
+        type="button"
+      >
+        Avbryt
+      </button>
+
+      <button
+        id="saveCustomerProjectBtn"
+        class="btn primary"
+        type="button"
+      >
+        Legg til
+      </button>
+
+    </div>
+  </div>
+</div>
 
           <!-- Kontaktpersoner lastes dynamisk -->
           <div id="customerPlaceholder" class="team-loading">
