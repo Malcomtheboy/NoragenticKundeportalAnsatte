@@ -51,6 +51,12 @@ const typingBox = document.getElementById("typingIndicator");
 let activeMenu = null;
 let editingMessageId = null;
 
+/**
+ * Gjør tekst trygg å vise i HTML.
+ *
+ * @param {unknown} value Verdi som skal escapes.
+ * @returns {string} Trygg tekststreng.
+ */
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => {
     const map = {
@@ -64,6 +70,19 @@ function escapeHtml(value) {
   });
 }
 
+/**
+ * Bygger brukerobjekt fra Firebase Auth og Firestore.
+ *
+ * @param {import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").User} user Innlogget bruker.
+ * @returns {Promise<{
+ *   uid: string,
+ *   email: string,
+ *   name: string,
+ *   role: string,
+ *   projectIds: string[],
+ *   projectId: string
+ * }>}
+ */
 async function buildUser(user) {
   const localName = localStorage.getItem("employee_name")?.trim() || "";
   let firestoreData = {};
@@ -90,6 +109,12 @@ async function buildUser(user) {
   };
 }
 
+/**
+ * Sjekker om aktiv bruker har tilgang til aktivt prosjekt.
+ *
+ * @param {Record<string, any>} projectData Prosjektdata fra Firestore.
+ * @returns {boolean}
+ */
 function hasProjectAccess(projectData) {
   if (!currentUser || !projectData || !currentProject) return false;
 
@@ -114,14 +139,33 @@ function hasProjectAccess(projectData) {
   return false;
 }
 
+/**
+ * Lager referanse til skriveindikator for aktiv bruker.
+ *
+ * @param {string} [projectId=currentProject] Prosjekt-ID.
+ * @param {string} [uid=currentUser?.uid] Bruker-ID.
+ * @returns {import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").DatabaseReference}
+ */
 function typingRef(projectId = currentProject, uid = currentUser?.uid) {
   return ref(database, `typing/${projectId}/${uid}`);
 }
 
+/**
+ * Lager referanse til skriveindikatorene for et prosjekt.
+ *
+ * @param {string} [projectId=currentProject] Prosjekt-ID.
+ * @returns {import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").DatabaseReference}
+ */
 function typingUsersProjectRef(projectId = currentProject) {
   return ref(database, `typing/${projectId}`);
 }
 
+/**
+ * Formaterer tidspunkt for visning i chatten.
+ *
+ * @param {any} value Tidspunkt fra Firestore eller timestamp.
+ * @returns {string}
+ */
 function formatTime(value) {
   if (!value) return "";
 
@@ -167,18 +211,37 @@ function formatTime(value) {
   });
 }
 
+/**
+ * Lukker aktiv meny for meldingshandlinger.
+ *
+ * @returns {void}
+ */
 function closeActiveMenu() {
   if (!activeMenu) return;
   activeMenu.classList.remove("active");
   activeMenu = null;
 }
 
+/**
+ * Setter en melding i redigeringsmodus.
+ *
+ * @param {string} messageId Melding-ID.
+ * @param {string} currentText Nåværende tekst.
+ * @returns {Promise<void>}
+ */
 async function editMessage(messageId, currentText) {
   editingMessageId = messageId;
   closeActiveMenu();
   loadChat();
 }
 
+/**
+ * Lagrer redigert melding til Firestore.
+ *
+ * @param {string} messageId Melding-ID.
+ * @param {HTMLTextAreaElement | HTMLInputElement | null | undefined} source Inputfelt med ny tekst.
+ * @returns {Promise<void>}
+ */
 async function saveEditedMessage(messageId, source) {
   const nextText = source?.value?.trim();
   if (!nextText) return;
@@ -195,6 +258,12 @@ async function saveEditedMessage(messageId, source) {
   }
 }
 
+/**
+ * Sletter en melding etter bekreftelse.
+ *
+ * @param {string} messageId Melding-ID.
+ * @returns {Promise<void>}
+ */
 async function deleteMessage(messageId) {
   const confirmed = confirm("Vil du slette denne meldingen?");
   if (!confirmed) return;
@@ -207,6 +276,12 @@ async function deleteMessage(messageId) {
   }
 }
 
+/**
+ * Renderer én melding som DOM-element.
+ *
+ * @param {Record<string, any>} [msg={}] Meldingsdata.
+ * @returns {HTMLDivElement}
+ */
 function renderMsg(msg = {}) {
   const div = document.createElement("div");
   const isMe = msg.uid && currentUser && msg.uid === currentUser.uid;
@@ -321,16 +396,32 @@ function renderMsg(msg = {}) {
   return div;
 }
 
+/**
+ * Tømmer begge chatvisningene.
+ *
+ * @returns {void}
+ */
 function clearMessages() {
   if (chatBox) chatBox.innerHTML = "";
   if (chatBoxBig) chatBoxBig.innerHTML = "";
 }
 
+/**
+ * Scroller begge chatvisningene til bunnen.
+ *
+ * @returns {void}
+ */
 function scrollToBottom() {
   if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   if (chatBoxBig) chatBoxBig.scrollTop = chatBoxBig.scrollHeight;
 }
 
+/**
+ * Viser en systemmelding i chatten.
+ *
+ * @param {string} text Meldingstekst.
+ * @returns {void}
+ */
 function renderSystemMessage(text) {
   clearMessages();
 
@@ -340,6 +431,11 @@ function renderSystemMessage(text) {
   if (chatBoxBig) chatBoxBig.innerHTML = html;
 }
 
+/**
+ * Stopper aktive lyttere for chat og skriveindikator.
+ *
+ * @returns {void}
+ */
 function stopChatListeners() {
   if (messagesUnsub) {
     messagesUnsub();
@@ -352,6 +448,12 @@ function stopChatListeners() {
   }
 }
 
+/**
+ * Laster prosjektdata og kontrollerer tilgang.
+ *
+ * @param {string} projectId Prosjekt-ID.
+ * @returns {Promise<boolean>}
+ */
 async function loadProjectAccess(projectId) {
   const projectSnap = await getDoc(doc(db, "projects", projectId));
 
@@ -371,6 +473,11 @@ async function loadProjectAccess(projectId) {
   return true;
 }
 
+/**
+ * Laster inn meldinger for aktivt prosjekt i sanntid.
+ *
+ * @returns {void}
+ */
 function loadChat() {
   stopChatListeners();
   clearMessages();
@@ -429,6 +536,12 @@ function loadChat() {
   );
 }
 
+/**
+ * Sender ny melding til Firestore.
+ *
+ * @param {HTMLInputElement | HTMLTextAreaElement | null | undefined} sourceInput Inputfelt med meldingstekst.
+ * @returns {Promise<void>}
+ */
 async function sendMessage(sourceInput) {
   const text = sourceInput?.value?.trim();
 
@@ -468,9 +581,13 @@ async function sendMessage(sourceInput) {
   }
 }
 
+/**
+ * Oppdaterer skriveindikator for aktiv bruker.
+ *
+ * @returns {void}
+ */
 function updateTypingState() {
   if (!typingSelfRef || !currentUser || !currentProjectData) return;
-
 
   set(typingSelfRef, {
     user: currentUser.name,
@@ -486,6 +603,12 @@ function updateTypingState() {
   }, 900);
 }
 
+/**
+ * Kobler skriveindikator til et inputfelt én gang.
+ *
+ * @param {HTMLInputElement | HTMLTextAreaElement | null} element Inputfelt.
+ * @returns {void}
+ */
 function bindTypingInput(element) {
   if (!element || element.dataset.typingBound === "true") return;
 
@@ -493,9 +616,13 @@ function bindTypingInput(element) {
   element.dataset.typingBound = "true";
 }
 
+/**
+ * Setter opp lytter for skriveindikatorer i aktivt prosjekt.
+ *
+ * @returns {void}
+ */
 function setupTyping() {
   if (!currentUser || !currentProject || !currentProjectData) return;
-
 
   if (typingUsersRef) {
     off(typingUsersRef);
@@ -525,6 +652,11 @@ function setupTyping() {
   });
 }
 
+/**
+ * Kobler send-funksjon til mini-chat og stor chat.
+ *
+ * @returns {void}
+ */
 function bindSend() {
   if (form && !form.dataset.bound) {
     form.addEventListener("submit", async (event) => {
@@ -543,6 +675,11 @@ function bindSend() {
   }
 }
 
+/**
+ * Kobler logikk for åpning og lukking av modal.
+ *
+ * @returns {void}
+ */
 function bindModal() {
   if (openBtn && modal && !openBtn.dataset.bound) {
     openBtn.addEventListener("click", () => modal.classList.add("active"));
@@ -564,6 +701,12 @@ function bindModal() {
   }
 }
 
+/**
+ * Bytter aktivt prosjekt og laster tilhørende chat.
+ *
+ * @param {string} projectId Prosjekt-ID.
+ * @returns {Promise<void>}
+ */
 async function switchProject(projectId) {
   if (!projectId || !currentUser) return;
 
@@ -580,6 +723,11 @@ async function switchProject(projectId) {
   setupTyping();
 }
 
+/**
+ * Lytter på prosjektbytte fra resten av applikasjonen.
+ *
+ * @returns {void}
+ */
 function bindProjectEvents() {
   if (window.__chatProjectBound) return;
 
@@ -591,6 +739,11 @@ function bindProjectEvents() {
   window.__chatProjectBound = true;
 }
 
+/**
+ * Starter opp chatten og kobler nødvendige lyttere.
+ *
+ * @returns {void}
+ */
 function startChat() {
   bindSend();
   bindModal();
@@ -603,6 +756,9 @@ function startChat() {
   }
 }
 
+/**
+ * Kjører når innlogget bruker endrer seg.
+ */
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
 
@@ -610,6 +766,9 @@ onAuthStateChanged(auth, async (user) => {
   startChat();
 });
 
+/**
+ * Lukker aktiv meny når bruker klikker utenfor.
+ */
 document.addEventListener("click", () => {
   closeActiveMenu();
 });
