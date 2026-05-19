@@ -1,3 +1,21 @@
+// ============================================================
+// tasks.js – Ansattportal
+// Ansvarlig: Gruppemedlem
+//
+// Denne filen håndterer alt som har med oppgaver (tasks) å gjøre
+// i ansattportalen. Hovedfunksjoner:
+//   – Vise og oppdatere oppgaver koblet til en valgt milepæl
+//   – Legge til nye oppgaver med kobling til milepæl-ID
+//   – Automatisk fullføre en milepæl når alle oppgaver er krysset av
+//   – Lagre completedAt-timestamp som brukes i Analytics.js
+//     for å vise historisk fremdrift i grafen per milepæl
+//
+// Dataflyt:
+//   project.js → dispatches "projectChanged" event
+//   tasks.js   → lytter på event → starter listenProject()
+//   Firestore  → onSnapshot → renderTasks() → oppdaterer UI
+// ============================================================
+
 import { auth, db } from "./firebase-auth.js";
 import {
   collection,
@@ -15,34 +33,51 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* =========================================================
-   ELEMENTER
+   DOM-REFERANSER
+   Henter HTML-elementer én gang ved oppstart.
+   Disse er statiske i index.html og endres ikke under kjøring.
 ========================================================= */
-const taskInput       = document.getElementById("taskInput");
-const addTaskBtn      = document.getElementById("addTaskBtn");
-const taskList        = document.getElementById("taskList");
+const taskInput        = document.getElementById("taskInput");
+const addTaskBtn       = document.getElementById("addTaskBtn");
+const taskList         = document.getElementById("taskList");
 const taskSectionTitle = document.getElementById("taskSectionTitle");
-const toggleDoneBtn   = document.getElementById("toggleDoneBtn");
-const clearDoneBtn    = document.getElementById("clearDoneBtn");
+const toggleDoneBtn    = document.getElementById("toggleDoneBtn");
+const clearDoneBtn     = document.getElementById("clearDoneBtn");
 
 /* =========================================================
-   STATE
+   TILSTANDSVARIABLER (STATE)
+   Holder modulens tilstand mellom funksjonsKall og
+   Firestore-oppdateringer.
 ========================================================= */
-let showDone         = false;
-let currentProjectId = window.currentProjectId || null;
-let currentMilestones = [];          // alle milepæler for prosjektet
-let activeMilestoneId = null;        // ID på valgt milepæl i dropdown
-let unsubscribeTasks  = null;
-let unsubscribeProject = null;
+let showDone          = false;  // Om fullførte oppgaver er synlige i listen
+let currentProjectId  = window.currentProjectId || null; // Aktivt prosjekt
+let currentMilestones = [];     // Alle milepæler for gjeldende prosjekt
+let activeMilestoneId = null;   // ID på milepælen valgt i dropdown
+let unsubscribeTasks  = null;   // Stopper task-lytteren ved milepælbytte
+let unsubscribeProject = null;  // Stopper prosjekt-lytteren ved prosjektbytte
 
 /* =========================================================
-   MILESTONE-SELECTOR
-   Mohamed – dropdown lar ansatt velge hvilken milepæl de jobber i
+   MILEPÆL-DROPDOWN
+   Viser en select-meny der ansatt velger hvilken milepæl
+   de vil se og legge til oppgaver i.
+   Fullførte milepæler vises med ✓, aktive med ○.
 ========================================================= */
+
+/** Hjelpefunksjon som returnerer dropdown-elementet fra DOM */
 function getMilestoneSelector() {
   return document.getElementById("milestoneSelector");
 }
 
+/**
+ * Bygger og setter inn milepæl-dropdown dynamisk i DOM-en.
+ * Kalles når prosjektdokumentet oppdateres i Firestore,
+ * slik at dropdown alltid reflekterer gjeldende milepæler.
+ *
+ * @param {Array} milestones - Array av milepæl-objekter fra Firestore
+ *                             Format: [{ id, title, done, date }]
+ */
 function renderMilestoneSelector(milestones) {
+  // Finn eller opprett wrapper-div over oppgave-inputfeltet
   let wrap = document.getElementById("milestoneSelectorWrap");
   if (!wrap) {
     wrap = document.createElement("div");
@@ -52,6 +87,7 @@ function renderMilestoneSelector(milestones) {
     if (taskBox) taskBox.parentElement.insertBefore(wrap, taskBox);
   }
 
+  // Bygg option-elementer – tom melding hvis ingen milepæler finnes ennå
   const options = milestones.length === 0
     ? `<option value="">Ingen milepæler – legg til i ✏️</option>`
     : milestones.map(m =>
@@ -73,13 +109,14 @@ function renderMilestoneSelector(milestones) {
       ${options}
     </select>`;
 
+  // Oppdater aktiveMilestoneId og last nye oppgaver når ansatt bytter milepæl
   const sel = document.getElementById("milestoneSelector");
   sel?.addEventListener("change", () => {
     activeMilestoneId = sel.value || null;
     if (currentProjectId) listenTasks(currentProjectId);
   });
 
-  // Default: første ikke-fullførte milepæl
+  // Sett første ikke-fullførte milepæl som default ved prosjektlasting
   if (!activeMilestoneId || !milestones.find(m => m.id === activeMilestoneId)) {
     const first = milestones.find(m => !m.done) || milestones[0];
     activeMilestoneId = first?.id || null;
@@ -88,9 +125,18 @@ function renderMilestoneSelector(milestones) {
 }
 
 /* =========================================================
-   TASK PROGRESS BAR
-   Mohamed – viser hvor mange tasks som er gjort i aktiv milepæl
+   FREMDRIFTSBAR FOR OPPGAVER
+   Viser en grønn bar med antall fullførte/totale oppgaver
+   i den valgte milepælen. Kalles etter hver snapshot-oppdatering.
 ========================================================= */
+
+/**
+ * Oppdaterer fremdriftsbaren dynamisk basert på fullførte oppgaver.
+ * Oppretter wrapper-elementet i DOM hvis det ikke allerede finnes.
+ *
+ * @param {number} done  - Antall fullførte oppgaver
+ * @param {number} total - Totalt antall oppgaver i milepælen
+ */
 function renderTaskProgressBar(done, total) {
   let barWrap = document.getElementById("taskProgressWrap");
   if (!barWrap) {
@@ -102,7 +148,7 @@ function renderTaskProgressBar(done, total) {
   }
 
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
-  const color = "rgba(74,222,128,0.85)"; // Mohamed – alltid grønn
+  const color = "rgba(74,222,128,0.85)"; // Alltid grønn uavhengig av prosent
 
   barWrap.innerHTML = `
     <div style="display:flex;justify-content:space-between;font-size:11px;
@@ -117,13 +163,23 @@ function renderTaskProgressBar(done, total) {
 }
 
 /* =========================================================
-   RENDER TASKS
+   RENDER TASKS – VIS OPPGAVELISTEN
+   Kalles automatisk av onSnapshot-lytteren i listenTasks()
+   hver gang oppgavedataene endres i Firestore (sanntid).
+   Bygger hele oppgavelisten på nytt ved hver oppdatering.
 ========================================================= */
+
+/**
+ * Renderer oppgavelisten basert på et Firestore QuerySnapshot.
+ * Teller fullførte vs. totale oppgaver og sjekker auto-fullføring av milepæl.
+ *
+ * @param {QuerySnapshot} snapshot - Firestore snapshot for oppgaver i aktiv milepæl
+ */
 function renderTasks(snapshot) {
   if (!taskList) return;
-  taskList.innerHTML = "";
+  taskList.innerHTML = ""; // Tøm listen før gjenoppbygging
 
-  let total = 0;
+  let total     = 0;
   let doneCount = 0;
   const allDone = [];
 
@@ -134,8 +190,11 @@ function renderTasks(snapshot) {
       doneCount++;
       allDone.push(d.id);
     }
+
+    // Hopp over fullførte hvis "Vis fullførte" ikke er aktiv
     if (!showDone && t.done) return;
 
+    // Bygg oppgave-rad med checkbox og slett-knapp
     const row = document.createElement("div");
     row.className = `task-item ${t.done ? "done" : ""}`;
     row.innerHTML = `
@@ -145,118 +204,180 @@ function renderTasks(snapshot) {
     `;
     taskList.appendChild(row);
 
+    // Checkbox-handler: oppdater done-status og completedAt i Firestore.
+    // completedAt = serverTimestamp() når avkrysset, null når åpnet igjen.
+    // Denne verdien brukes i Analytics.js for å vise ekte historisk
+    // fremdriftskurve per milepæl i grafen.
     row.querySelector("input").addEventListener("change", async (e) => {
       const checked = e.target.checked;
-      // Mohamed – lagre completedAt når task fullføres, null når den gjenåpnes
       await updateDoc(doc(db, "projects", currentProjectId, "tasks", d.id), {
-        done: checked,
+        done:        checked,
         completedAt: checked ? serverTimestamp() : null
       });
+      // Sjekk om alle oppgaver nå er fullført → eventuelt auto-fullfør milepælen
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
 
+    // Slett-knapp: fjern oppgaven permanent fra Firestore
     row.querySelector(".delete-task-btn")?.addEventListener("click", async () => {
       await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
       await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
     });
   });
 
+  // Oppdater tittel med teller, f.eks. "Tasks (3/5 ferdig)"
   if (taskSectionTitle) {
     taskSectionTitle.textContent = `Tasks (${doneCount}/${total} ferdig)`;
   }
 
   renderTaskProgressBar(doneCount, total);
 
-  // Mohamed – auto-fullfør milepæl hvis alle tasks er done og det finnes tasks
+  // Trigger auto-fullføring hvis alle oppgaver er krysset av
   if (total > 0 && doneCount === total) {
-   syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
+    syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
   }
 }
 
 /* =========================================================
    AUTO-FULLFØR MILEPÆL
-   Mohamed – når alle tasks i en milepæl er done, sett milestone.done = true
+   Sjekker om alle oppgaver i en milepæl er fullført.
+   Oppdaterer milestone.done i prosjektdokumentet automatisk.
+   Dette utløser prosjekt-lytteren i Analytics.js, som igjen
+   oppdaterer fremgangsprosenten og grafen i sanntid.
 ========================================================= */
+
+/**
+ * Synkroniserer milepæl-status basert på oppgavestatus.
+ * Henter alle oppgaver for milepælen og setter done = true
+ * hvis alle er fullført, eller false hvis minst én er åpen.
+ * Unngår unødvendige Firestore-skrivinger ved å sammenligne
+ * eksisterende verdi før oppdatering.
+ *
+ * @param {string} projectId   - ID på gjeldende prosjekt
+ * @param {string} milestoneId - ID på milepælen som skal sjekkes
+ */
 async function syncMilestoneStatusFromTasks(projectId, milestoneId) {
   if (!projectId || !milestoneId) return;
 
   try {
+    // Hent alle oppgaver koblet til denne milepælen via delmalId
     const snap = await getDocs(query(
       collection(db, "projects", projectId, "tasks"),
       where("delmalId", "==", milestoneId)
     ));
 
     const total = snap.size;
-    const done = snap.docs.filter(d => d.data().done).length;
+    const done  = snap.docs.filter(d => d.data().done).length;
 
+    // Hent prosjektdokumentet for å lese eksisterende milepæler
     const projSnap = await getDoc(doc(db, "projects", projectId));
     if (!projSnap.exists()) return;
 
     const milestones = projSnap.data().milestones || [];
-    const idx = milestones.findIndex(m => m.id === milestoneId);
+    const idx        = milestones.findIndex(m => m.id === milestoneId);
     if (idx === -1) return;
 
     const shouldBeDone = total > 0 && done === total;
 
+    // Avbryt hvis status ikke har endret seg – sparer Firestore-skriving
     if (milestones[idx].done === shouldBeDone) return;
 
     milestones[idx].done = shouldBeDone;
 
+    // Lagre oppdatert milepæl-array til Firestore med merge
+    // Dette utløser prosjekt-lytteren i Analytics.js automatisk
     await setDoc(doc(db, "projects", projectId), {
       milestones,
       updatedAt: serverTimestamp()
     }, { merge: true });
+
   } catch (err) {
     console.error("syncMilestoneStatusFromTasks feilet:", err);
   }
 }
 
 /* =========================================================
-   LYTT PÅ TASKS
+   LYTT PÅ OPPGAVER (SANNTID)
+   Starter en Firestore onSnapshot-lytter filtrert på
+   aktiveMilestoneId. Lytteren stoppes og restartes
+   automatisk når ansatt bytter milepæl i dropdown.
 ========================================================= */
+
+/**
+ * Starter eller restarter sanntidslytting på oppgaver for aktiv milepæl.
+ * Bruker onSnapshot slik at listen oppdateres automatisk
+ * uten sideoppdatering når data endres i Firestore.
+ *
+ * @param {string} projectId - ID på gjeldende prosjekt
+ */
 function listenTasks(projectId) {
+  // Vis tom liste og nullstill bar hvis ingen milepæl er valgt
   if (!projectId || !activeMilestoneId) {
     if (taskList) taskList.innerHTML = "";
     renderTaskProgressBar(0, 0);
     return;
   }
+
+  // Stopp forrige lytter for å unngå doble abonnementer og minnelekkasje
   if (unsubscribeTasks) unsubscribeTasks();
 
+  // Filtrer oppgaver på delmalId – henter kun oppgaver for valgt milepæl
   const q = query(
     collection(db, "projects", projectId, "tasks"),
     where("delmalId", "==", activeMilestoneId)
   );
 
+  // Start sanntidslytter – renderTasks kalles automatisk ved endringer
   unsubscribeTasks = onSnapshot(q, renderTasks, (err) => {
     console.error("Task listener error:", err);
   });
 }
 
 /* =========================================================
-   LYTT PÅ PROSJEKTDOKUMENT – oppdater milepæl-dropdown
+   LYTT PÅ PROSJEKTDOKUMENT
+   Lytter på endringer i prosjektets milepæl-array slik at
+   dropdown alltid er oppdatert, f.eks. når en ansatt legger
+   til eller redigerer milepæler via admin-modalen.
 ========================================================= */
+
+/**
+ * Starter sanntidslytting på prosjektdokumentet.
+ * Oppdaterer milepæl-dropdown og restarter task-lytteren
+ * automatisk ved endringer i Firestore.
+ *
+ * @param {string} projectId - ID på prosjektet det lyttes på
+ */
 function listenProject(projectId) {
   if (!projectId) return;
-  if (unsubscribeProject) unsubscribeProject();
+  if (unsubscribeProject) unsubscribeProject(); // Stopp forrige lytter
 
   unsubscribeProject = onSnapshot(
     doc(db, "projects", projectId),
     (snap) => {
       if (!snap.exists()) return;
       currentMilestones = snap.data().milestones || [];
-      renderMilestoneSelector(currentMilestones);
-      listenTasks(projectId);
+      renderMilestoneSelector(currentMilestones); // Oppdater dropdown med nye milepæler
+      listenTasks(projectId);                      // Last oppgaver for aktiv milepæl
     },
     (err) => console.warn("Project listener (tasks):", err.code)
   );
 }
 
 /* =========================================================
-   LEGG TIL TASK
+   LEGG TIL OPPGAVE
+   Oppretter en ny oppgave i Firestore-subkoleksjonen
+   projects/{id}/tasks og kobler den til aktiv milepæl.
+   completedAt settes til null og oppdateres ved avkryssing.
 ========================================================= */
+
+/**
+ * Leser tittel fra inputfeltet og lagrer ny oppgave til Firestore.
+ * Validerer at prosjekt og milepæl er valgt før lagring.
+ * Tømmer inputfeltet etter vellykket lagring.
+ */
 async function addTask() {
   const projectId = window.currentProjectId || currentProjectId;
-  if (!projectId) { alert("Fant ikke aktivt prosjekt-id"); return; }
+  if (!projectId)         { alert("Fant ikke aktivt prosjekt-id"); return; }
   if (!activeMilestoneId) { alert("Velg en milepæl først"); return; }
 
   const title = taskInput?.value.trim();
@@ -266,12 +387,12 @@ async function addTask() {
     await addDoc(collection(db, "projects", projectId, "tasks"), {
       title,
       done:        false,
-      delmalId:    activeMilestoneId,  // Mohamed – koblet til milepæl-ID
-      completedAt: null,               // Mohamed – settes til serverTimestamp() når fullført
-      createdAt:   serverTimestamp(),
-      createdBy:   auth.currentUser?.uid || "unknown"
+      delmalId:    activeMilestoneId, // Kobler oppgaven til valgt milepæl-ID
+      completedAt: null,              // Settes til serverTimestamp() når avkrysset
+      createdAt:   serverTimestamp(), // Tidsstempel for opprettelse
+      createdBy:   auth.currentUser?.uid || "unknown" // UID til innlogget ansatt
     });
-    taskInput.value = "";
+    taskInput.value = ""; // Tøm felt etter vellykket lagring
   } catch (err) {
     console.error("Kunne ikke lagre task:", err);
     alert("Feil ved lagring: " + (err.message || err));
@@ -279,42 +400,58 @@ async function addTask() {
 }
 
 /* =========================================================
-   EVENT LISTENERS
+   EVENT LISTENERS – BRUKERINTERAKSJONER
+   Kobler HTML-knapper og inputfelter til funksjoner.
 ========================================================= */
+
+// Legg til oppgave ved klikk
 addTaskBtn?.addEventListener("click", addTask);
 
+// Legg til oppgave ved Enter-tast i inputfeltet
 taskInput?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addTask();
 });
 
+// Vis/skjul fullførte oppgaver – toggler showDone-flagget
 toggleDoneBtn?.addEventListener("click", () => {
   showDone = !showDone;
   toggleDoneBtn.textContent = showDone ? "Skjul fullførte" : "Vis fullførte";
   if (currentProjectId) listenTasks(currentProjectId);
 });
 
+// Slett alle fullførte oppgaver for aktiv milepæl
 clearDoneBtn?.addEventListener("click", async () => {
   if (!currentProjectId || !activeMilestoneId) return;
 
+  // Hent alle fullførte oppgaver for milepælen
   const snap = await getDocs(query(
     collection(db, "projects", currentProjectId, "tasks"),
     where("delmalId", "==", activeMilestoneId),
     where("done", "==", true)
   ));
+
+  // Slett én etter én (Firestore web-SDK støtter ikke batch-delete direkte)
   for (const d of snap.docs) {
     await deleteDoc(doc(db, "projects", currentProjectId, "tasks", d.id));
   }
-  await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
 
+  // Oppdater milepæl-status etter at oppgaver er slettet
+  await syncMilestoneStatusFromTasks(currentProjectId, activeMilestoneId);
 });
 
+// Lytter på projectChanged-eventet som sendes fra project.js
+// når ansatt bytter prosjekt via dropdown i hero-seksjonen
 window.addEventListener("projectChanged", (e) => {
-  currentProjectId = e.detail?.projectId || null;
-  activeMilestoneId = null; // reset ved prosjektbytte
+  currentProjectId  = e.detail?.projectId || null;
+  activeMilestoneId = null; // Nullstill milepælvalg ved prosjektbytte
   listenProject(currentProjectId);
 });
 
-// Init hvis prosjekt allerede er satt
+/* =========================================================
+   INIT – OPPSTART
+   Starter direkte hvis prosjekt allerede er satt i window
+   (f.eks. ved sideoppdatering der prosjekt er lagret i minnet)
+========================================================= */
 if (window.currentProjectId) {
   currentProjectId = window.currentProjectId;
   listenProject(currentProjectId);
