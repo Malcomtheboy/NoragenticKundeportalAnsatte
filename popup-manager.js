@@ -57,7 +57,7 @@ function closePopup() {
 
 export function showError(message = "Noe gikk galt.") {
 
-  popupTitle.textContent = "Feil";
+  popupTitle.textContent = "Obs!";
   popupMessage.textContent = message;
 
   popupActions.innerHTML = `
