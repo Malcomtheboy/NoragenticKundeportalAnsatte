@@ -17,6 +17,7 @@
   },
   "build": {
     "appId": "com.noragentic.ansattportal",
+    "icon": "assets/favicon.ico",
     "productName": "Noragentic Ansattportal",
     "directories": {
       "output": "dist"
@@ -26,7 +27,8 @@
       "!node_modules/.cache"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/favicon.ico"
     },
     "mac": {
       "target": "dmg",
